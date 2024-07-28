@@ -8,16 +8,12 @@ const stopButton = document.getElementById('stop-button');
 const ballsSize = 10;
 let balls = [];
 let waitingBalls = [];
-let stopPosition = { left: container.clientWidth/2 + ballsSize/2, top: container.clientHeight - ballsSize, isUpdated: false};
-let animationRunning = false;
+let stopPosition = { left: container.offsetWidth/2 - ballsSize/2, top: container.clientHeight - ballsSize, isUpdated: false};
+let isAnimating = false;
 let isBallsInWaitingContainer = true;
 let forceStopBallsMoving = false;
 
 const containerRect = container.getBoundingClientRect();
-
-// Стартовая позиция точки запуска
-let launchX = container.offsetWidth/2 - ballsSize/2;
-let launchY = container.offsetHeight - ballsSize;
 
 const levels = [
   {
@@ -101,8 +97,8 @@ const levels = [
         { type: 'triangle', mainAngle: 'RB', stacks: 5 },
         { type: 'triangle', mainAngle: 'RB', stacks: 5 },
         { type: 'triangle', mainAngle: 'RB', stacks: 5 },
-        { type: 'triangle', mainAngle: 'RB', stacks: 5 },
-        { type: 'triangle', mainAngle: 'RB', stacks: 5 },
+        { type: 'box', stacks: 7 },
+        ,
         ,
         { type: 'box', stacks: 7 },
         { type: 'triangle', mainAngle: 'RB', stacks: 5 },
@@ -214,16 +210,23 @@ function createBonusBallsElement(x, y, bonus) {
   container.appendChild(box);
 }
 
+// Создание мяча и добавление его в массив мячей
 function createBall() {
   let ball = document.createElement('div');
   ball.className = 'ball';
-  ball.style.backgroundColor = 'red';
-  waitingBalls.push(ball);
+  const ballElement = {
+    element: ball,
+    x: stopPosition.left,
+    y: stopPosition.top,
+    velX: 0,
+    velY: 0,
+  }
+  waitingBalls.push(ballElement);
   if (isBallsInWaitingContainer) {
-    waitingContainer.appendChild(ball);
+    waitingContainer.appendChild(ballElement.element);
     updateWaitingCounter();
   } else {
-    stoppedContainer.appendChild(ball);
+    stoppedContainer.appendChild(ballElement.element);
     updateStoppedCounter();
   }
 }
@@ -238,63 +241,59 @@ function updateStoppedCounter() {
   stoppedCounter.innerText = counterValue === 0 ? '' : `x${counterValue}`;
 }
 
-function moveBall(ball, velX, velY) {
+function moveBall(ball) {
   let ballStopped = false;
   
   // Объявление начальной позиции мяча
-  let posX = launchX;
-  let posY = launchY;
+  ball.x = stopPosition.left;
+  ball.y = stopPosition.top;
+
 
   function move() {
     if (ballStopped) return;
     
-    const ballRect = ball.getBoundingClientRect();
-
-    // Обновление позиции мяча
-    posX += velX;
-    posY += velY;
+    const ballRect = ball.element.getBoundingClientRect();
+    
+    ball.x += ball.velX;
+    ball.y += ball.velY;
     
     // Проверка столкновения с контейнером
-    if (posX <= 0 || posX + ballRect.width >= container.clientWidth) {
-      posX -= velX; // Шаг назад
-      velX = -velX;
+    if (ball.x <= 0 || ball.x + ballRect.width >= container.clientWidth) {
+      ball.x -= ball.velX; // Шаг назад
+      ball.velX = -ball.velX;
     }
 
-    if (posY <= 0) {
-      posY -= velY; // Шаг назад
-      velY = -velY;
+    if (ball.y <= 0) {
+      ball.y -= ball.velY; // Шаг назад
+      ball.velY = -ball.velY;
     }
 
-    ball.style.left = posX + 'px';
-    ball.style.top = posY + 'px';
+    ball.element.style.left = ball.x + 'px';
+    ball.element.style.top = ball.y + 'px';
 
     // Проверка столкновения с нижней гранью контейнера + принудительная остановка
-    if (posY + ballRect.height >= container.clientHeight || forceStopBallsMoving) {
+    if (ball.y + ballRect.height >= container.clientHeight || forceStopBallsMoving) {
       ballStopped = true;
-      ball.style.top = container.clientHeight - ballRect.height + 'px';
-      console.log(stopPosition);
+      ball.element.style.top = container.clientHeight - ballRect.height + 'px';
       if (!stopPosition.isUpdated) {
         stopPosition.isUpdated = true;
-        stopPosition.left = forceStopBallsMoving ? stopPosition.left : posX;
+        stopPosition.left = forceStopBallsMoving ? stopPosition.left : ball.x;
         stopPosition.top = container.clientHeight - ballRect.height;
-        launchX = stopPosition.left;
-        launchY = stopPosition.top;
         if (isBallsInWaitingContainer) {
           stoppedContainer.style.left = stopPosition.left + ballRect.width/2 + 'px';
           stoppedContainer.style.top = container.clientHeight - ballRect.height + 'px';
-          stoppedContainer.appendChild(ball);
+          stoppedContainer.appendChild(ball.element);
         } else {
           waitingContainer.style.left = stopPosition.left + ballRect.width/2 + 'px';
           waitingContainer.style.top = container.clientHeight - ballRect.height + 'px';
-          waitingContainer.appendChild(ball);
+          waitingContainer.appendChild(ball.element);
         }
-        ball.style.left = 0;
-        ball.style.top = 0;
-        balls = balls.filter(filteredBall => filteredBall !== ball);
+        ball.element.style.left = 0;
+        ball.element.style.top = 0;
+        balls = balls.filter(filteredBall => filteredBall.element !== ball.element);
       } else {
         stopBallAnimation(ball);
       }
-      console.log(ball.style.left, ball.style.top);
       setTimeout(() => {
         isBallsInWaitingContainer ? updateStoppedCounter() : updateWaitingCounter();
         checkAllBallsStopped();
@@ -302,115 +301,8 @@ function moveBall(ball, velX, velY) {
       return;
     }
 
-    // Check collision with other elements
-    const elements = document.querySelectorAll('.element');
-    elements.forEach(element => {
-      const rect2 = element.getBoundingClientRect();
-      if (
-        ballRect.left < rect2.left + rect2.width &&
-        ballRect.left + ballRect.width > rect2.left &&
-        ballRect.top < rect2.top + rect2.height &&
-        ballRect.top + ballRect.height > rect2.top
-      ) {
-      //   // Collision detected
-      // //   console.log('touch box - ',  ballRect.left < rect2.left + rect2.width,
-      // //   ballRect.left + ballRect.width > rect2.leftwidth,
-      // //   ballRect.top < rect2.top + rect2.heightwidth,
-      // //   ballRect.top + ballRect.height > rect2.top
-      // // );
-        let stacks = parseInt(element.getAttribute('data-stacks'));
-        stacks -= 1;
-        if (stacks <= 0) {
-          element.remove();
-        } else {
-          element.setAttribute('data-stacks', stacks);
-          element.querySelector('.counter_container span').innerText = stacks;
-        }
-
-        // Change direction based on collision side
-        if (ballRect.left + ballRect.width - velX <= rect2.left || ballRect.left - velX >= rect2.left + rect2.width) {
-          velX = -velX;
-        }
-
-        if (ballRect.top + ballRect.height - velY <= rect2.top || ballRect.top - velY >= rect2.top + rect2.height) {
-          velY = -velY;
-        }
-      }
-      
-        // if (element.classList.contains('box')) {
-        //   // Collision detected
-        //   let stacks = parseInt(element.getAttribute('data-stacks'));
-        //   stacks -= 1;
-        //   if (stacks <= 0) {
-        //     element.remove();
-        //   } else {
-        //     element.setAttribute('data-stacks', stacks);
-        //     element.querySelector('.counter_container span').innerText = stacks;
-        //   }
-
-        //   const overlapLeft = ballRect.right - rect2.left;
-        //   const overlapRight = rect2.right - ballRect.left;
-        //   const overlapTop = ballRect.bottom - rect2.top;
-        //   const overlapBottom = rect2.bottom - ballRect.top;
-
-        //   const minOverlap = Math.min(
-        //     overlapLeft,
-        //     overlapRight,
-        //     overlapTop,
-        //     overlapBottom
-        //   );
-
-        //   // Шаг назад перед изменением направления
-        //   if (minOverlap === overlapLeft || minOverlap === overlapRight) {
-        //     posX -= velX * 3;
-        //     velX = -velX;
-        //   }
-        //   if (minOverlap === overlapTop || minOverlap === overlapBottom) {
-        //     posY -= velY * 3;
-        //     velY = -velY;
-        //   }
-        // } else if (element.classList.contains('triangle')) {
-        //   const vertices = getTriangleVertices(element, rect2);
-        //   const collisionSide = checkCollisionWithTriangle(
-        //     ballRect,
-        //     vertices,
-        //     velX,
-        //     velY
-        //   );
-        //   if (collisionSide) {
-        //     // Collision detected
-        //     let stacks = parseInt(element.getAttribute('data-stacks'));
-        //     stacks -= 1;
-        //     if (stacks <= 0) {
-        //       element.remove();
-        //     } else {
-        //       element.setAttribute('data-stacks', stacks);
-        //       element.querySelector('.counter_container span').innerText =
-        //         stacks;
-        //     }
-        //   }
-
-        //   if (collisionSide === 'left' || collisionSide === 'right') {
-        //     posX -= velX * 3; // Шаг назад
-        //     velX = -velX;
-        //   } else if (collisionSide === 'top' || collisionSide === 'bottom') {
-        //     posY -= velY * 3; // Шаг назад
-        //     velY = -velY;
-        //   } else if (collisionSide === 'hypotenuse') {
-        //     const newVelX = -velY;
-        //     const newVelY = -velX;
-
-        //     if (collisionSide === 'hypotenuse') {
-        //       posX -= velX * 3;
-        //       posY -= velY * 3;
-
-        //       velX = newVelX;
-        //       velY = newVelY;
-        //     }
-        //   }
-        // }
-      // }
-    });
+    // Проверка столкновения с другими элементами
+    checkCollision(ball);
 
     requestAnimationFrame(move);
   }
@@ -418,29 +310,218 @@ function moveBall(ball, velX, velY) {
   move();
 }
 
+// Проверка столкновения с другими элементами
+function checkCollision(ball) {
+  const rect1 = ball.element.getBoundingClientRect();
+  const elements = document.querySelectorAll('.element');
+
+  const centerX = rect1.left+ballsSize/2;
+  const centerY = rect1.top+ballsSize/2;
+
+  elements.forEach(element => {
+      const rect2 = element.getBoundingClientRect();
+      if (centerX > rect2.left && centerX < rect2.right && centerY> rect2.top && centerY < rect2.bottom) {
+          handleCollision(ball, element);
+      }
+  });
+}
+
+// Обработка столкновения
+function handleCollision(ball, element) {
+  const ballRect = ball.element.getBoundingClientRect();
+
+  const ballPrevX = ballRect.left+ballsSize/2 - ball.velX;
+  const ballPrevY = ballRect.top+ballsSize/2 - ball.velY;
+
+  if (element.classList.contains('triangle')) {
+      const vertices = getTriangleVertices(element, element.getBoundingClientRect());
+      if (isPointInTriangle({ x: ballRect.left+ballsSize/2, y: ballRect.top+ballsSize/2 }, vertices)) {
+        const side = getCollisionSideTriangle(ballPrevX, ballPrevY, ballRect.left+ballsSize/2, ballRect.top+ballsSize/2, element);
+        if (side === 'hypotenuse') {
+            // Логика для гипотенузы
+            [ball.velX, ball.velY] = [-ball.velY, -ball.velX]; // Поворот на 90 градусов
+        } else {
+            // Логика для сторон треугольника
+            if (side === 'left' || side === 'right') {
+                ball.velX = -ball.velX;
+            } else if (side === 'top' || side === 'bottom') {
+                ball.velY = -ball.velY;
+            }
+        }
+        // Уменьшение счетчика и удаление элемента, если он достиг 0
+        const counter = element.querySelector('.counter_container span');
+        if (counter) {
+            let stacks = parseInt(counter.innerText);
+            stacks--;
+            if (stacks <= 0) {
+                element.remove();
+            } else {
+                counter.innerText = stacks;
+            }
+        }
+      }
+  } else if (element.classList.contains('box')) {
+      const side = getCollisionSideBox(ballPrevX, ballPrevY, ballRect.left+ballsSize/2, ballRect.top+ballsSize/2, element);
+      if (side === 'left' || side === 'right') {
+          ball.velX = -ball.velX;
+      } else if (side === 'top' || side === 'bottom') {
+          ball.velY = -ball.velY;
+      }
+      // Уменьшение счетчика и удаление элемента, если он достиг 0
+      const counter = element.querySelector('.counter_container span');
+      if (counter) {
+          let stacks = parseInt(counter.innerText);
+          stacks--;
+          if (stacks <= 0) {
+              element.remove();
+          } else {
+              counter.innerText = stacks;
+          }
+      }
+  }
+}
+
+// Определение стороны столкновения c box
+function getCollisionSideBox(prevX, prevY, x, y, element) {
+  const rect = element.getBoundingClientRect();
+
+  const left = { x1: rect.left, y1: rect.top, x2: rect.left, y2: rect.bottom };
+  const right = { x1: rect.right, y1: rect.top, x2: rect.right, y2: rect.bottom };
+  const top = { x1: rect.left, y1: rect.top, x2: rect.right, y2: rect.top };
+  const bottom = { x1: rect.left, y1: rect.bottom, x2: rect.right, y2: rect.bottom };
+  
+  const distanceToLeft = intersectsRay(prevX, prevY, x, y, left);
+  const distanceToRight = intersectsRay(prevX, prevY, x, y, right);
+  const distanceToTop = intersectsRay(prevX, prevY, x, y, top);
+  const distanceToBottom = intersectsRay(prevX, prevY, x, y, bottom)
+
+  const minDistance = Math.min(distanceToLeft, distanceToRight, distanceToTop, distanceToBottom);
+
+  switch (minDistance) {
+    case distanceToLeft:
+      return 'left';
+
+    case distanceToRight:
+      return 'right';
+      
+    case distanceToTop:
+      return 'top';
+      
+    case distanceToBottom:
+      return 'bottom';
+      
+    default:
+      return null;
+  }
+}
+
+// Определение стороны столкновения c triangle
+function getCollisionSideTriangle(prevX, prevY, x, y, element) {
+  const rect = element.getBoundingClientRect();
+  const mainAngle = element.getAttribute('data-main-angle');
+
+  const left = { x1: rect.left, y1: rect.top, x2: rect.left, y2: rect.bottom };
+  const right = { x1: rect.right, y1: rect.top, x2: rect.right, y2: rect.bottom };
+  const top = { x1: rect.left, y1: rect.top, x2: rect.right, y2: rect.top };
+  const bottom = { x1: rect.left, y1: rect.bottom, x2: rect.right, y2: rect.bottom };
+  
+  let minDistance;
+  
+  const distanceToLeft = intersectsRay(prevX, prevY, x, y, left);
+  const distanceToRight = intersectsRay(prevX, prevY, x, y, right);
+  const distanceToTop = intersectsRay(prevX, prevY, x, y, top);
+  const distanceToBottom = intersectsRay(prevX, prevY, x, y, bottom);
+  let distanceToHypotenuse;
+  // Проверка для гипотенузы треугольника
+  let hypotenuse;
+  if (mainAngle === 'RB') {
+      hypotenuse = { x1: rect.left, y1: rect.bottom, x2: rect.right, y2: rect.top };
+      distanceToHypotenuse = intersectsRay(prevX, prevY, x, y, hypotenuse);
+      minDistance = Math.min(distanceToRight, distanceToBottom, distanceToHypotenuse);
+  } else if (mainAngle === 'LB') {
+      hypotenuse = { x1: rect.right, y1: rect.bottom, x2: rect.left, y2: rect.top };
+      distanceToHypotenuse = intersectsRay(prevX, prevY, x, y, hypotenuse);
+      minDistance = Math.min(distanceToLeft, distanceToBottom, distanceToHypotenuse);
+  } else if (mainAngle === 'RT') {
+      hypotenuse = { x1: rect.left, y1: rect.top, x2: rect.right, y2: rect.bottom };
+      distanceToHypotenuse = intersectsRay(prevX, prevY, x, y, hypotenuse);
+      minDistance = Math.min(distanceToRight, distanceToTop, distanceToHypotenuse);
+  } else if (mainAngle === 'LT') {
+      hypotenuse = { x1: rect.right, y1: rect.top, x2: rect.left, y2: rect.bottom };
+      distanceToHypotenuse = intersectsRay(prevX, prevY, x, y, hypotenuse);
+      minDistance = Math.min(distanceToLeft, distanceToTop, distanceToHypotenuse);
+  }
+
+  switch (minDistance) {
+    case distanceToLeft:
+      return 'left';
+
+    case distanceToRight:
+      return 'right';
+      
+    case distanceToTop:
+      return 'top';
+      
+    case distanceToBottom:
+      return 'bottom';
+      
+    case distanceToHypotenuse:
+      return 'hypotenuse';
+      
+    default:
+      return null;
+  }
+}
+
+// Проверка пересечения линий
+function intersectsRay(x1, y1, x2, y2, line) {
+  const dx1 = x2 - x1;
+  const dy1 = y2 - y1;
+  const dx2 = line.x2 - line.x1;
+  const dy2 = line.y2 - line.y1;
+
+  const det = dx1 * dy2 - dx2 * dy1;
+  
+  if (det === 0) return 10000; // Линии параллельны
+
+  const t1 = -((line.y1 - y1) * dx2 - (line.x1 - x1) * dy2) / det;
+
+  if (t1 < 0) return 10000; // Луч пересекается с линией в обратном направлении
+
+  const intersectionX = x1 + t1 * dx1;
+  const intersectionY = y1 + t1 * dy1;
+  const distance = Math.sqrt(Math.pow(intersectionX - x1, 2) + Math.pow(intersectionY - y1, 2));
+
+  return distance;
+}
+
 function checkAllBallsStopped() {
-  if (balls.length === 0 && waitingBalls.every(ball => ball.parentNode === isBallsInWaitingContainer ? stoppedContainer : waitingContainer)) {
+  if (balls.length === 0 && waitingBalls.every(ball => ball.element.parentNode === isBallsInWaitingContainer ? stoppedContainer : waitingContainer)) {
     stopPosition.isUpdated = false;
-    animationRunning = false;
+    isAnimating = false;
     isBallsInWaitingContainer = !isBallsInWaitingContainer;
     forceStopBallsMoving = false;
   }
 }
 
 function startBalls(velX, velY) {
-  if (animationRunning) return;
-  animationRunning = true;
+  if (isAnimating) return;
+  isAnimating = true;
   let delay = 0;
   waitingBalls.forEach((ball, index) => {
     setTimeout(() => {
+      ball.velX = velX;
+      ball.velY = velY;
       if (isBallsInWaitingContainer) {
-        waitingContainer.removeChild(ball);
+        waitingContainer.removeChild(ball.element);
       } else {
-        stoppedContainer.removeChild(ball);
+        stoppedContainer.removeChild(ball.element);
       }
-      container.appendChild(ball);
+      container.appendChild(ball.element);
+      ball.element.style.left = stopPosition.left + 'px';
+      ball.element.style.top = stopPosition.top + 'px';
       balls.push(ball);
-      moveBall(ball, velX, velY);
+      moveBall(ball);
       isBallsInWaitingContainer ? updateWaitingCounter() : updateStoppedCounter();
     }, delay);
     delay += 100;
@@ -448,26 +529,26 @@ function startBalls(velX, velY) {
 }
 
 function stopAnimation() {
-  if (!animationRunning) return;
+  if (!isAnimating) return;
   forceStopBallsMoving = true;
 }
 
 function stopBallAnimation(ball) {
-    if (!ball.classList.contains('moving')) {
-      ball.classList.add('moving');
-      ball.style.left = stopPosition.left + 'px';
-      ball.style.top = stopPosition.top + 'px';
+    if (!ball.element.classList.contains('moving')) {
+      ball.element.classList.add('moving');
+      ball.element.style.left = stopPosition.left + 'px';
+      ball.element.style.top = stopPosition.top + 'px';
       setTimeout(() => {
         if (isBallsInWaitingContainer) {
-          stoppedContainer.appendChild(ball);
+          stoppedContainer.appendChild(ball.element);
         } else {
-          waitingContainer.appendChild(ball);
+          waitingContainer.appendChild(ball.element);
         }
-        ball.classList.remove('moving');
-        ball.style.transform = '';
-        ball.style.left = 0;
-        ball.style.top = 0;
-        balls = balls.filter(filteredBall => filteredBall !== ball);
+        ball.element.classList.remove('moving');
+        ball.element.style.transform = '';
+        ball.element.style.left = 0;
+        ball.element.style.top = 0;
+        balls = balls.filter(filteredBall => filteredBall.element !== ball.element);
       }, 100);
     }
 }
@@ -753,15 +834,15 @@ function getTriangleVertices(triangle, rect) {
 
 // Обработчик события mouseup для запуска анимации
 container.addEventListener('mouseup', function (event) {
-  if (animationRunning) return;
+  if (isAnimating) return;
 
   // Позиция мыши в момент отпускания кнопки
   const mouseX = event.clientX - container.getBoundingClientRect().left;
   const mouseY = event.clientY - container.getBoundingClientRect().top;
 
   // Вычисление направления движения
-  const deltaX = mouseX - launchX;
-  const deltaY = mouseY - launchY;
+  const deltaX = mouseX - stopPosition.left;
+  const deltaY = mouseY - stopPosition.top;
   const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
   // Задание скорости и направления
