@@ -12,6 +12,12 @@ let stopPosition = { left: container.offsetWidth/2 - ballsSize/2, top: container
 let isAnimating = false;
 let isBallsInWaitingContainer = true;
 let forceStopBallsMoving = false;
+let trajectoryElement;
+
+const maxTrajectoryLength = container.offsetHeight * 1.2;
+
+container.addEventListener('mousedown', startDrawingTrajectory);
+container.addEventListener('mousemove', updateTrajectory);
 
 const containerRect = container.getBoundingClientRect();
 
@@ -251,7 +257,7 @@ function moveBall(ball) {
 
   function move() {
     if (ballStopped) return;
-    
+
     const ballRect = ball.element.getBoundingClientRect();
     
     ball.x += ball.velX;
@@ -832,17 +838,35 @@ function getTriangleVertices(triangle, rect) {
   return vertices;
 }
 
-// Обработчик события mouseup для запуска анимации
-container.addEventListener('mouseup', function (event) {
-  if (isAnimating) return;
+// // Обработчик события mouseup для запуска анимации
+// container.addEventListener('mouseup', function (event) {
+//   if (isAnimating) return;
 
+//   // Позиция мыши в момент отпускания кнопки
+//   const mouseX = event.clientX - container.getBoundingClientRect().left;
+//   const mouseY = event.clientY - container.getBoundingClientRect().top;
+
+//   // Вычисление направления движения
+//   const deltaX = mouseX - stopPosition.left;
+//   const deltaY = mouseY - stopPosition.top;
+//   const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+//   // Задание скорости и направления
+//   velX = (deltaX / distance) * 4; // Коэффициент скорости
+//   velY = (deltaY / distance) * 4;
+
+//   // Запуск анимации
+//   startBalls(velX, velY);
+// });
+
+container.addEventListener('mouseup', function mouseUpHandler(event) {
   // Позиция мыши в момент отпускания кнопки
-  const mouseX = event.clientX - container.getBoundingClientRect().left;
-  const mouseY = event.clientY - container.getBoundingClientRect().top;
+  const releaseX = event.clientX - container.getBoundingClientRect().left;
+  const releaseY = event.clientY - container.getBoundingClientRect().top;
 
   // Вычисление направления движения
-  const deltaX = mouseX - stopPosition.left;
-  const deltaY = mouseY - stopPosition.top;
+  const deltaX = releaseX - stopPosition.left;
+  const deltaY = releaseY - stopPosition.top;
   const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
   // Задание скорости и направления
@@ -851,7 +875,101 @@ container.addEventListener('mouseup', function (event) {
 
   // Запуск анимации
   startBalls(velX, velY);
+
+  // Удаление траектории
+  // trajectory.style.display = 'none';
+  // while (trajectory.firstChild) {
+  //     trajectory.removeChild(trajectory.firstChild);
+  // }
+
+  clearTrajectory();
+  // container.removeEventListener('mousemove', drawTrajectory);
+  // container.removeEventListener('mouseup', mouseUpHandler);
 });
+
+
+function startDrawingTrajectory(event) {
+  if (isAnimating) return;
+  clearTrajectory();
+  const { clientX, clientY } = event;
+  const startX = stopPosition.left + ballsSize/2;
+  const startY = stopPosition.top + ballsSize/2;
+  const endX = clientX - container.getBoundingClientRect().left;
+  const endY = clientY - container.getBoundingClientRect().top;
+  drawTrajectory(startX, startY, endX, endY);
+}
+
+function updateTrajectory(event) {
+  if (!trajectoryElement) return;
+  const { clientX, clientY } = event;
+  const startX = stopPosition.left + ballsSize/2;
+  const startY = stopPosition.top + ballsSize/2;
+  const endX = clientX - container.getBoundingClientRect().left;
+  const endY = clientY - container.getBoundingClientRect().top;
+  drawTrajectory(startX, startY, endX, endY);
+}
+
+
+function drawTrajectory(startX, startY, endX, endY) {
+  clearTrajectory();
+
+  const deltaX = endX - startX;
+  const deltaY = endY - startY;
+  const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+  let velX = (deltaX / distance) * 8;
+  let velY = (deltaY / distance) * 8;
+
+  trajectoryElement = document.createElement('div');
+  trajectoryElement.classList.add('trajectory');
+
+  let currentX = startX;
+  let currentY = startY;
+  let currentDistance = 0;
+
+  while (currentDistance < maxTrajectoryLength) {
+      currentX += velX;
+      currentY += velY;
+      currentDistance += Math.sqrt((currentX - startX) ** 2 + (currentY - startY) ** 2);
+
+      if (currentX <= 0 || currentX >= container.clientWidth) {
+          velX *= -1;
+          currentX = Math.min(Math.max(currentX, 0), container.clientWidth);
+      }
+
+      if (currentY <= 0 || currentY >= container.clientHeight) {
+          velY *= -1;
+          currentY = Math.min(Math.max(currentY, 0), container.clientHeight);
+      }
+
+      const segment = createTrajectorySegment(startX, startY, currentX, currentY);
+      trajectoryElement.appendChild(segment);
+      startX = currentX;
+      startY = currentY;
+  }
+
+  container.appendChild(trajectoryElement);
+}
+
+function createTrajectorySegment(x1, y1, x2, y2) {
+  const segment = document.createElement('div');
+  segment.classList.add('trajectory-segment');
+
+  const length = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+  const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+
+  segment.style.width = `${length/2}px`;
+  segment.style.transform = `translate(${x1}px, ${y1}px) rotate(${angle}deg)`;
+
+  return segment;
+}
+
+function clearTrajectory() {
+  if (trajectoryElement) {
+      trajectoryElement.remove();
+      trajectoryElement = null;
+  }
+}
 
 generateLevel(levelConfig);
 stopButton.addEventListener('click', stopAnimation);
