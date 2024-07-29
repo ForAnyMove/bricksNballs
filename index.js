@@ -8,11 +8,16 @@ const stopButton = document.getElementById('stop-button');
 const ballsSize = 10;
 let balls = [];
 let waitingBalls = [];
-let stopPosition = { left: container.offsetWidth/2 - ballsSize/2, top: container.clientHeight - ballsSize, isUpdated: false};
+let stopPosition = {
+  left: container.offsetWidth / 2 - ballsSize / 2,
+  top: container.clientHeight - ballsSize,
+  isUpdated: false,
+};
 let isAnimating = false;
 let isBallsInWaitingContainer = true;
 let forceStopBallsMoving = false;
 let trajectoryElement;
+let extraBallsQue = 0;
 
 const maxTrajectoryLength = container.offsetHeight * 1.2;
 
@@ -89,14 +94,12 @@ const levels = [
         { type: 'triangle', mainAngle: 'LB', stacks: 5 },
         ,
         ,
-        // { type: 'addBalls', bonus: 1},
-        // { type: 'addBalls', bonus: 3},
         ,
         ,
         ,
         ,
-        ,
-        ,
+        { type: 'addBalls', bonus: 1},
+        { type: 'addBalls', bonus: 3},
         { type: 'triangle', mainAngle: 'RB', stacks: 5 },
       ],
       [
@@ -204,7 +207,8 @@ function createTriangle(x, y, mainAngle, stacks) {
 
 function createBonusBallsElement(x, y, bonus) {
   const box = document.createElement('div');
-  box.className = 'element bonus-box';
+  box.className = 'element bonus-box add-balls-bonus';
+  box.setAttribute('data-extra-balls', bonus);
   box.style.left = x + 'px';
   box.style.top = y + 'px';
   const bonusBallsElement = document.createElement('div');
@@ -226,7 +230,7 @@ function createBall() {
     y: stopPosition.top,
     velX: 0,
     velY: 0,
-  }
+  };
   waitingBalls.push(ballElement);
   if (isBallsInWaitingContainer) {
     waitingContainer.appendChild(ballElement.element);
@@ -240,29 +244,34 @@ function createBall() {
 function updateWaitingCounter() {
   const counterValue = waitingContainer.getElementsByClassName('ball').length;
   waitingCounter.innerText = counterValue === 0 ? '' : `x${counterValue}`;
+  if (extraBallsQue !== 0) {
+    waitingCounter.innerText += ` +${extraBallsQue}`
+  }
 }
 
 function updateStoppedCounter() {
   const counterValue = stoppedContainer.getElementsByClassName('ball').length;
   stoppedCounter.innerText = counterValue === 0 ? '' : `x${counterValue}`;
+  if (extraBallsQue !== 0) {
+    stoppedCounter.innerText += ` +${extraBallsQue}`
+  }
 }
 
-function moveBall(ball) {
+function moveBall(ball, startedPosition) {
   let ballStopped = false;
-  
-  // Объявление начальной позиции мяча
-  ball.x = stopPosition.left;
-  ball.y = stopPosition.top;
 
+  // Объявление начальной позиции мяча
+  ball.x = startedPosition.left;
+  ball.y = startedPosition.top;
 
   function move() {
     if (ballStopped) return;
 
     const ballRect = ball.element.getBoundingClientRect();
-    
+
     ball.x += ball.velX;
     ball.y += ball.velY;
-    
+
     // Проверка столкновения с контейнером
     if (ball.x <= 0 || ball.x + ballRect.width >= container.clientWidth) {
       ball.x -= ball.velX; // Шаг назад
@@ -278,7 +287,10 @@ function moveBall(ball) {
     ball.element.style.top = ball.y + 'px';
 
     // Проверка столкновения с нижней гранью контейнера + принудительная остановка
-    if (ball.y + ballRect.height >= container.clientHeight || forceStopBallsMoving) {
+    if (
+      ball.y + ballRect.height >= container.clientHeight ||
+      forceStopBallsMoving
+    ) {
       ballStopped = true;
       ball.element.style.top = container.clientHeight - ballRect.height + 'px';
       if (!stopPosition.isUpdated) {
@@ -286,22 +298,30 @@ function moveBall(ball) {
         stopPosition.left = forceStopBallsMoving ? stopPosition.left : ball.x;
         stopPosition.top = container.clientHeight - ballRect.height;
         if (isBallsInWaitingContainer) {
-          stoppedContainer.style.left = stopPosition.left + ballRect.width/2 + 'px';
-          stoppedContainer.style.top = container.clientHeight - ballRect.height + 'px';
+          stoppedContainer.style.left =
+            stopPosition.left + ballRect.width / 2 + 'px';
+          stoppedContainer.style.top =
+            container.clientHeight - ballRect.height + 'px';
           stoppedContainer.appendChild(ball.element);
         } else {
-          waitingContainer.style.left = stopPosition.left + ballRect.width/2 + 'px';
-          waitingContainer.style.top = container.clientHeight - ballRect.height + 'px';
+          waitingContainer.style.left =
+            stopPosition.left + ballRect.width / 2 + 'px';
+          waitingContainer.style.top =
+            container.clientHeight - ballRect.height + 'px';
           waitingContainer.appendChild(ball.element);
         }
         ball.element.style.left = 0;
         ball.element.style.top = 0;
-        balls = balls.filter(filteredBall => filteredBall.element !== ball.element);
+        balls = balls.filter(
+          (filteredBall) => filteredBall.element !== ball.element
+        );
       } else {
         stopBallAnimation(ball);
       }
       setTimeout(() => {
-        isBallsInWaitingContainer ? updateStoppedCounter() : updateWaitingCounter();
+        isBallsInWaitingContainer
+          ? updateStoppedCounter()
+          : updateWaitingCounter();
         checkAllBallsStopped();
       }, 100);
       return;
@@ -321,14 +341,19 @@ function checkCollision(ball) {
   const rect1 = ball.element.getBoundingClientRect();
   const elements = document.querySelectorAll('.element');
 
-  const centerX = rect1.left+ballsSize/2;
-  const centerY = rect1.top+ballsSize/2;
+  const centerX = rect1.left + ballsSize / 2;
+  const centerY = rect1.top + ballsSize / 2;
 
-  elements.forEach(element => {
-      const rect2 = element.getBoundingClientRect();
-      if (centerX > rect2.left && centerX < rect2.right && centerY> rect2.top && centerY < rect2.bottom) {
-          handleCollision(ball, element);
-      }
+  elements.forEach((element) => {
+    const rect2 = element.getBoundingClientRect();
+    if (
+      centerX > rect2.left &&
+      centerX < rect2.right &&
+      centerY > rect2.top &&
+      centerY < rect2.bottom
+    ) {
+      handleCollision(ball, element);
+    }
   });
 }
 
@@ -336,54 +361,81 @@ function checkCollision(ball) {
 function handleCollision(ball, element) {
   const ballRect = ball.element.getBoundingClientRect();
 
-  const ballPrevX = ballRect.left+ballsSize/2 - ball.velX;
-  const ballPrevY = ballRect.top+ballsSize/2 - ball.velY;
+  const ballPrevX = ballRect.left + ballsSize / 2 - ball.velX;
+  const ballPrevY = ballRect.top + ballsSize / 2 - ball.velY;
 
   if (element.classList.contains('triangle')) {
-      const vertices = getTriangleVertices(element, element.getBoundingClientRect());
-      if (isPointInTriangle({ x: ballRect.left+ballsSize/2, y: ballRect.top+ballsSize/2 }, vertices)) {
-        const side = getCollisionSideTriangle(ballPrevX, ballPrevY, ballRect.left+ballsSize/2, ballRect.top+ballsSize/2, element);
-        if (side === 'hypotenuse') {
-            // Логика для гипотенузы
-            [ball.velX, ball.velY] = [-ball.velY, -ball.velX]; // Поворот на 90 градусов
-        } else {
-            // Логика для сторон треугольника
-            if (side === 'left' || side === 'right') {
-                ball.velX = -ball.velX;
-            } else if (side === 'top' || side === 'bottom') {
-                ball.velY = -ball.velY;
-            }
-        }
-        // Уменьшение счетчика и удаление элемента, если он достиг 0
-        const counter = element.querySelector('.counter_container span');
-        if (counter) {
-            let stacks = parseInt(counter.innerText);
-            stacks--;
-            if (stacks <= 0) {
-                element.remove();
-            } else {
-                counter.innerText = stacks;
-            }
-        }
-      }
-  } else if (element.classList.contains('box')) {
-      const side = getCollisionSideBox(ballPrevX, ballPrevY, ballRect.left+ballsSize/2, ballRect.top+ballsSize/2, element);
-      if (side === 'left' || side === 'right') {
+    const vertices = getTriangleVertices(
+      element,
+      element.getBoundingClientRect()
+    );
+    if (
+      isPointInTriangle(
+        { x: ballRect.left + ballsSize / 2, y: ballRect.top + ballsSize / 2 },
+        vertices
+      )
+    ) {
+      const side = getCollisionSideTriangle(
+        ballPrevX,
+        ballPrevY,
+        ballRect.left + ballsSize / 2,
+        ballRect.top + ballsSize / 2,
+        element
+      );
+      if (side === 'hypotenuse') {
+        // Логика для гипотенузы
+        [ball.velX, ball.velY] = [-ball.velY, -ball.velX]; // Поворот на 90 градусов
+      } else {
+        // Логика для сторон треугольника
+        if (side === 'left' || side === 'right') {
           ball.velX = -ball.velX;
-      } else if (side === 'top' || side === 'bottom') {
+        } else if (side === 'top' || side === 'bottom') {
           ball.velY = -ball.velY;
+        }
       }
       // Уменьшение счетчика и удаление элемента, если он достиг 0
       const counter = element.querySelector('.counter_container span');
       if (counter) {
-          let stacks = parseInt(counter.innerText);
-          stacks--;
-          if (stacks <= 0) {
-              element.remove();
-          } else {
-              counter.innerText = stacks;
-          }
+        let stacks = parseInt(counter.innerText);
+        stacks--;
+        if (stacks <= 0) {
+          element.remove();
+        } else {
+          counter.innerText = stacks;
+        }
       }
+    }
+  } else if (element.classList.contains('box')) {
+    const side = getCollisionSideBox(
+      ballPrevX,
+      ballPrevY,
+      ballRect.left + ballsSize / 2,
+      ballRect.top + ballsSize / 2,
+      element
+    );
+    if (side === 'left' || side === 'right') {
+      ball.velX = -ball.velX;
+    } else if (side === 'top' || side === 'bottom') {
+      ball.velY = -ball.velY;
+    }
+    // Уменьшение счетчика и удаление элемента, если он достиг 0
+    const counter = element.querySelector('.counter_container span');
+    if (counter) {
+      let stacks = parseInt(counter.innerText);
+      stacks--;
+      if (stacks <= 0) {
+        element.remove();
+      } else {
+        counter.innerText = stacks;
+      }
+    }
+  } else if (element.classList.contains('bonus-box')) {
+    const extraBalls = element.dataset.extraBalls;
+    extraBallsQue += +extraBalls;
+    element.remove();
+    isBallsInWaitingContainer
+      ? updateStoppedCounter()
+      : updateWaitingCounter();
   }
 }
 
@@ -392,16 +444,31 @@ function getCollisionSideBox(prevX, prevY, x, y, element) {
   const rect = element.getBoundingClientRect();
 
   const left = { x1: rect.left, y1: rect.top, x2: rect.left, y2: rect.bottom };
-  const right = { x1: rect.right, y1: rect.top, x2: rect.right, y2: rect.bottom };
+  const right = {
+    x1: rect.right,
+    y1: rect.top,
+    x2: rect.right,
+    y2: rect.bottom,
+  };
   const top = { x1: rect.left, y1: rect.top, x2: rect.right, y2: rect.top };
-  const bottom = { x1: rect.left, y1: rect.bottom, x2: rect.right, y2: rect.bottom };
-  
+  const bottom = {
+    x1: rect.left,
+    y1: rect.bottom,
+    x2: rect.right,
+    y2: rect.bottom,
+  };
+
   const distanceToLeft = intersectsRay(prevX, prevY, x, y, left);
   const distanceToRight = intersectsRay(prevX, prevY, x, y, right);
   const distanceToTop = intersectsRay(prevX, prevY, x, y, top);
-  const distanceToBottom = intersectsRay(prevX, prevY, x, y, bottom)
+  const distanceToBottom = intersectsRay(prevX, prevY, x, y, bottom);
 
-  const minDistance = Math.min(distanceToLeft, distanceToRight, distanceToTop, distanceToBottom);
+  const minDistance = Math.min(
+    distanceToLeft,
+    distanceToRight,
+    distanceToTop,
+    distanceToBottom
+  );
 
   switch (minDistance) {
     case distanceToLeft:
@@ -409,13 +476,13 @@ function getCollisionSideBox(prevX, prevY, x, y, element) {
 
     case distanceToRight:
       return 'right';
-      
+
     case distanceToTop:
       return 'top';
-      
+
     case distanceToBottom:
       return 'bottom';
-      
+
     default:
       return null;
   }
@@ -427,12 +494,22 @@ function getCollisionSideTriangle(prevX, prevY, x, y, element) {
   const mainAngle = element.getAttribute('data-main-angle');
 
   const left = { x1: rect.left, y1: rect.top, x2: rect.left, y2: rect.bottom };
-  const right = { x1: rect.right, y1: rect.top, x2: rect.right, y2: rect.bottom };
+  const right = {
+    x1: rect.right,
+    y1: rect.top,
+    x2: rect.right,
+    y2: rect.bottom,
+  };
   const top = { x1: rect.left, y1: rect.top, x2: rect.right, y2: rect.top };
-  const bottom = { x1: rect.left, y1: rect.bottom, x2: rect.right, y2: rect.bottom };
-  
+  const bottom = {
+    x1: rect.left,
+    y1: rect.bottom,
+    x2: rect.right,
+    y2: rect.bottom,
+  };
+
   let minDistance;
-  
+
   const distanceToLeft = intersectsRay(prevX, prevY, x, y, left);
   const distanceToRight = intersectsRay(prevX, prevY, x, y, right);
   const distanceToTop = intersectsRay(prevX, prevY, x, y, top);
@@ -441,21 +518,53 @@ function getCollisionSideTriangle(prevX, prevY, x, y, element) {
   // Проверка для гипотенузы треугольника
   let hypotenuse;
   if (mainAngle === 'RB') {
-      hypotenuse = { x1: rect.left, y1: rect.bottom, x2: rect.right, y2: rect.top };
-      distanceToHypotenuse = intersectsRay(prevX, prevY, x, y, hypotenuse);
-      minDistance = Math.min(distanceToRight, distanceToBottom, distanceToHypotenuse);
+    hypotenuse = {
+      x1: rect.left,
+      y1: rect.bottom,
+      x2: rect.right,
+      y2: rect.top,
+    };
+    distanceToHypotenuse = intersectsRay(prevX, prevY, x, y, hypotenuse);
+    minDistance = Math.min(
+      distanceToRight,
+      distanceToBottom,
+      distanceToHypotenuse
+    );
   } else if (mainAngle === 'LB') {
-      hypotenuse = { x1: rect.right, y1: rect.bottom, x2: rect.left, y2: rect.top };
-      distanceToHypotenuse = intersectsRay(prevX, prevY, x, y, hypotenuse);
-      minDistance = Math.min(distanceToLeft, distanceToBottom, distanceToHypotenuse);
+    hypotenuse = {
+      x1: rect.right,
+      y1: rect.bottom,
+      x2: rect.left,
+      y2: rect.top,
+    };
+    distanceToHypotenuse = intersectsRay(prevX, prevY, x, y, hypotenuse);
+    minDistance = Math.min(
+      distanceToLeft,
+      distanceToBottom,
+      distanceToHypotenuse
+    );
   } else if (mainAngle === 'RT') {
-      hypotenuse = { x1: rect.left, y1: rect.top, x2: rect.right, y2: rect.bottom };
-      distanceToHypotenuse = intersectsRay(prevX, prevY, x, y, hypotenuse);
-      minDistance = Math.min(distanceToRight, distanceToTop, distanceToHypotenuse);
+    hypotenuse = {
+      x1: rect.left,
+      y1: rect.top,
+      x2: rect.right,
+      y2: rect.bottom,
+    };
+    distanceToHypotenuse = intersectsRay(prevX, prevY, x, y, hypotenuse);
+    minDistance = Math.min(
+      distanceToRight,
+      distanceToTop,
+      distanceToHypotenuse
+    );
   } else if (mainAngle === 'LT') {
-      hypotenuse = { x1: rect.right, y1: rect.top, x2: rect.left, y2: rect.bottom };
-      distanceToHypotenuse = intersectsRay(prevX, prevY, x, y, hypotenuse);
-      minDistance = Math.min(distanceToLeft, distanceToTop, distanceToHypotenuse);
+    hypotenuse = {
+      x1: rect.right,
+      y1: rect.top,
+      x2: rect.left,
+      y2: rect.bottom,
+    };
+    distanceToHypotenuse = intersectsRay(prevX, prevY, x, y, hypotenuse);
+    minDistance = Math.min(distanceToLeft, distanceToTop, distanceToHypotenuse);
   }
 
   switch (minDistance) {
@@ -464,16 +573,16 @@ function getCollisionSideTriangle(prevX, prevY, x, y, element) {
 
     case distanceToRight:
       return 'right';
-      
+
     case distanceToTop:
       return 'top';
-      
+
     case distanceToBottom:
       return 'bottom';
-      
+
     case distanceToHypotenuse:
       return 'hypotenuse';
-      
+
     default:
       return null;
   }
@@ -487,7 +596,7 @@ function intersectsRay(x1, y1, x2, y2, line) {
   const dy2 = line.y2 - line.y1;
 
   const det = dx1 * dy2 - dx2 * dy1;
-  
+
   if (det === 0) return 10000; // Линии параллельны
 
   const t1 = -((line.y1 - y1) * dx2 - (line.x1 - x1) * dy2) / det;
@@ -496,17 +605,35 @@ function intersectsRay(x1, y1, x2, y2, line) {
 
   const intersectionX = x1 + t1 * dx1;
   const intersectionY = y1 + t1 * dy1;
-  const distance = Math.sqrt(Math.pow(intersectionX - x1, 2) + Math.pow(intersectionY - y1, 2));
+  const distance = Math.sqrt(
+    Math.pow(intersectionX - x1, 2) + Math.pow(intersectionY - y1, 2)
+  );
 
   return distance;
 }
 
 function checkAllBallsStopped() {
-  if (balls.length === 0 && waitingBalls.every(ball => ball.element.parentNode === isBallsInWaitingContainer ? stoppedContainer : waitingContainer)) {
+  if (
+    balls.length === 0 &&
+    waitingBalls.every((ball) =>
+      ball.element.parentNode === isBallsInWaitingContainer
+        ? stoppedContainer
+        : waitingContainer
+    )
+  ) {
     stopPosition.isUpdated = false;
     isAnimating = false;
     isBallsInWaitingContainer = !isBallsInWaitingContainer;
     forceStopBallsMoving = false;
+    if (extraBallsQue !== 0) {
+      for (let i = 0; i < extraBallsQue; i++) {
+        createBall();
+      }
+      extraBallsQue = 0;
+      !isBallsInWaitingContainer
+      ? updateStoppedCounter()
+      : updateWaitingCounter();
+    }
   }
 }
 
@@ -514,6 +641,10 @@ function startBalls(velX, velY) {
   if (isAnimating) return;
   isAnimating = true;
   let delay = 0;
+  const startedPosition = {
+    left: stopPosition.left,
+    top: stopPosition.top,
+  }
   waitingBalls.forEach((ball, index) => {
     setTimeout(() => {
       ball.velX = velX;
@@ -527,8 +658,10 @@ function startBalls(velX, velY) {
       ball.element.style.left = stopPosition.left + 'px';
       ball.element.style.top = stopPosition.top + 'px';
       balls.push(ball);
-      moveBall(ball);
-      isBallsInWaitingContainer ? updateWaitingCounter() : updateStoppedCounter();
+      moveBall(ball, startedPosition);
+      isBallsInWaitingContainer
+        ? updateWaitingCounter()
+        : updateStoppedCounter();
     }, delay);
     delay += 100;
   });
@@ -540,23 +673,25 @@ function stopAnimation() {
 }
 
 function stopBallAnimation(ball) {
-    if (!ball.element.classList.contains('moving')) {
-      ball.element.classList.add('moving');
-      ball.element.style.left = stopPosition.left + 'px';
-      ball.element.style.top = stopPosition.top + 'px';
-      setTimeout(() => {
-        if (isBallsInWaitingContainer) {
-          stoppedContainer.appendChild(ball.element);
-        } else {
-          waitingContainer.appendChild(ball.element);
-        }
-        ball.element.classList.remove('moving');
-        ball.element.style.transform = '';
-        ball.element.style.left = 0;
-        ball.element.style.top = 0;
-        balls = balls.filter(filteredBall => filteredBall.element !== ball.element);
-      }, 100);
-    }
+  if (!ball.element.classList.contains('moving')) {
+    ball.element.classList.add('moving');
+    ball.element.style.left = stopPosition.left + 'px';
+    ball.element.style.top = stopPosition.top + 'px';
+    setTimeout(() => {
+      if (isBallsInWaitingContainer) {
+        stoppedContainer.appendChild(ball.element);
+      } else {
+        waitingContainer.appendChild(ball.element);
+      }
+      ball.element.classList.remove('moving');
+      ball.element.style.transform = '';
+      ball.element.style.left = 0;
+      ball.element.style.top = 0;
+      balls = balls.filter(
+        (filteredBall) => filteredBall.element !== ball.element
+      );
+    }, 100);
+  }
 }
 
 // Функция для проверки, находится ли точка внутри треугольника
@@ -659,18 +794,6 @@ function checkCollisionWithTriangle(rect, vertices, velX, velY) {
       hypotenuse.y2
     );
 
-    console.log(`
-    distToLeft - ${distToLeft},
-    distToRight - ${distToRight},
-    distToTop - ${distToTop},
-    distToBottom - ${distToBottom},
-    distToHypotenuse - ${distToHypotenuse},
-    velX - ${velX},
-    velY - ${velY},
-    rect pos x/y - ${centerX}/${centerY}
-    rect prev pos x/y - ${prevCenterX}/${prevCenterY}
-    `);
-
     const minDist = Math.min(
       distToLeft,
       distToRight,
@@ -687,117 +810,6 @@ function checkCollisionWithTriangle(rect, vertices, velX, velY) {
   }
   return null;
 }
-
-// Функция для обновления позиции
-// function updatePosition() {
-//   if (!isAnimating) return;
-
-//   posX += velX;
-//   posY += velY;
-
-//   // Проверка столкновения с границами контейнера
-//   if (posX <= 0 || posX + ball.offsetWidth >= container.clientWidth) {
-//     posX -= velX; // Шаг назад
-//     velX = -velX;
-//   }
-//   if (posY <= 0 || posY + ball.offsetHeight >= container.clientHeight) {
-//     posY -= velY; // Шаг назад
-//     velY = -velY;
-//   }
-
-//   // Проверка столкновения с другим элементом
-//   const ballRect = ball.getBoundingClientRect();
-
-//   const elements = document.querySelectorAll('.element');
-
-//   elements.forEach((element) => {
-//     if (element !== ball) {
-//       const rect2 = element.getBoundingClientRect();
-
-//       if (
-//         !(
-//           ballRect.right < rect2.left ||
-//           ballRect.left > rect2.right ||
-//           ballRect.bottom < rect2.top ||
-//           ballRect.top > rect2.bottom
-//         )
-//       ) {
-//         if (element.classList.contains('box')) {
-//           // Collision detected
-//           let stacks = parseInt(element.getAttribute('data-stacks'));
-//           stacks -= 1;
-//           if (stacks <= 0) {
-//             element.remove();
-//           } else {
-//             element.setAttribute('data-stacks', stacks);
-//             element.querySelector('.counter_container span').innerText = stacks;
-//           }
-
-//           const overlapLeft = ballRect.right - rect2.left;
-//           const overlapRight = rect2.right - ballRect.left;
-//           const overlapTop = ballRect.bottom - rect2.top;
-//           const overlapBottom = rect2.bottom - ballRect.top;
-
-//           const minOverlap = Math.min(
-//             overlapLeft,
-//             overlapRight,
-//             overlapTop,
-//             overlapBottom
-//           );
-
-//           // Шаг назад перед изменением направления
-//           if (minOverlap === overlapLeft || minOverlap === overlapRight) {
-//             posX -= velX * 3;
-//             velX = -velX;
-//           }
-//           if (minOverlap === overlapTop || minOverlap === overlapBottom) {
-//             posY -= velY * 3;
-//             velY = -velY;
-//           }
-//         } else if (element.classList.contains('triangle')) {
-//           const vertices = getTriangleVertices(element, rect2);
-//           const collisionSide = checkCollisionWithTriangle(
-//             ballRect,
-//             vertices,
-//             velX,
-//             velY
-//           );
-//           if (collisionSide) {
-//             // Collision detected
-//             let stacks = parseInt(element.getAttribute('data-stacks'));
-//             stacks -= 1;
-//             if (stacks <= 0) {
-//               element.remove();
-//             } else {
-//               element.setAttribute('data-stacks', stacks);
-//               element.querySelector('.counter_container span').innerText =
-//                 stacks;
-//             }
-//           }
-
-//           if (collisionSide === 'left' || collisionSide === 'right') {
-//             posX -= velX * 3; // Шаг назад
-//             velX = -velX;
-//           } else if (collisionSide === 'top' || collisionSide === 'bottom') {
-//             posY -= velY * 3; // Шаг назад
-//             velY = -velY;
-//           } else if (collisionSide === 'hypotenuse') {
-//             const newVelX = -velY;
-//             const newVelY = -velX;
-
-//             if (collisionSide === 'hypotenuse') {
-//               posX -= velX * 3;
-//               posY -= velY * 3;
-
-//               velX = newVelX;
-//               velY = newVelY;
-//             }
-//           }
-//         }
-//       }
-//     }
-//   });
-// }
 
 function getTriangleVertices(triangle, rect) {
   let vertices;
@@ -838,27 +850,6 @@ function getTriangleVertices(triangle, rect) {
   return vertices;
 }
 
-// // Обработчик события mouseup для запуска анимации
-// container.addEventListener('mouseup', function (event) {
-//   if (isAnimating) return;
-
-//   // Позиция мыши в момент отпускания кнопки
-//   const mouseX = event.clientX - container.getBoundingClientRect().left;
-//   const mouseY = event.clientY - container.getBoundingClientRect().top;
-
-//   // Вычисление направления движения
-//   const deltaX = mouseX - stopPosition.left;
-//   const deltaY = mouseY - stopPosition.top;
-//   const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-
-//   // Задание скорости и направления
-//   velX = (deltaX / distance) * 4; // Коэффициент скорости
-//   velY = (deltaY / distance) * 4;
-
-//   // Запуск анимации
-//   startBalls(velX, velY);
-// });
-
 container.addEventListener('mouseup', function mouseUpHandler(event) {
   // Позиция мыши в момент отпускания кнопки
   const releaseX = event.clientX - container.getBoundingClientRect().left;
@@ -877,23 +868,15 @@ container.addEventListener('mouseup', function mouseUpHandler(event) {
   startBalls(velX, velY);
 
   // Удаление траектории
-  // trajectory.style.display = 'none';
-  // while (trajectory.firstChild) {
-  //     trajectory.removeChild(trajectory.firstChild);
-  // }
-
   clearTrajectory();
-  // container.removeEventListener('mousemove', drawTrajectory);
-  // container.removeEventListener('mouseup', mouseUpHandler);
 });
-
 
 function startDrawingTrajectory(event) {
   if (isAnimating) return;
   clearTrajectory();
   const { clientX, clientY } = event;
-  const startX = stopPosition.left + ballsSize/2;
-  const startY = stopPosition.top + ballsSize/2;
+  const startX = stopPosition.left + ballsSize / 2;
+  const startY = stopPosition.top + ballsSize / 2;
   const endX = clientX - container.getBoundingClientRect().left;
   const endY = clientY - container.getBoundingClientRect().top;
   drawTrajectory(startX, startY, endX, endY);
@@ -902,13 +885,12 @@ function startDrawingTrajectory(event) {
 function updateTrajectory(event) {
   if (!trajectoryElement) return;
   const { clientX, clientY } = event;
-  const startX = stopPosition.left + ballsSize/2;
-  const startY = stopPosition.top + ballsSize/2;
+  const startX = stopPosition.left + ballsSize / 2;
+  const startY = stopPosition.top + ballsSize / 2;
   const endX = clientX - container.getBoundingClientRect().left;
   const endY = clientY - container.getBoundingClientRect().top;
   drawTrajectory(startX, startY, endX, endY);
 }
-
 
 function drawTrajectory(startX, startY, endX, endY) {
   clearTrajectory();
@@ -928,24 +910,26 @@ function drawTrajectory(startX, startY, endX, endY) {
   let currentDistance = 0;
 
   while (currentDistance < maxTrajectoryLength) {
-      currentX += velX;
-      currentY += velY;
-      currentDistance += Math.sqrt((currentX - startX) ** 2 + (currentY - startY) ** 2);
+    currentX += velX;
+    currentY += velY;
+    currentDistance += Math.sqrt(
+      (currentX - startX) ** 2 + (currentY - startY) ** 2
+    );
 
-      if (currentX <= 0 || currentX >= container.clientWidth) {
-          velX *= -1;
-          currentX = Math.min(Math.max(currentX, 0), container.clientWidth);
-      }
+    if (currentX <= 0 || currentX >= container.clientWidth) {
+      velX *= -1;
+      currentX = Math.min(Math.max(currentX, 0), container.clientWidth);
+    }
 
-      if (currentY <= 0 || currentY >= container.clientHeight) {
-          velY *= -1;
-          currentY = Math.min(Math.max(currentY, 0), container.clientHeight);
-      }
+    if (currentY <= 0 || currentY >= container.clientHeight) {
+      velY *= -1;
+      currentY = Math.min(Math.max(currentY, 0), container.clientHeight);
+    }
 
-      const segment = createTrajectorySegment(startX, startY, currentX, currentY);
-      trajectoryElement.appendChild(segment);
-      startX = currentX;
-      startY = currentY;
+    const segment = createTrajectorySegment(startX, startY, currentX, currentY);
+    trajectoryElement.appendChild(segment);
+    startX = currentX;
+    startY = currentY;
   }
 
   container.appendChild(trajectoryElement);
@@ -956,9 +940,9 @@ function createTrajectorySegment(x1, y1, x2, y2) {
   segment.classList.add('trajectory-segment');
 
   const length = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
-  const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+  const angle = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
 
-  segment.style.width = `${length/2}px`;
+  segment.style.width = `${length / 2}px`;
   segment.style.transform = `translate(${x1}px, ${y1}px) rotate(${angle}deg)`;
 
   return segment;
@@ -966,8 +950,8 @@ function createTrajectorySegment(x1, y1, x2, y2) {
 
 function clearTrajectory() {
   if (trajectoryElement) {
-      trajectoryElement.remove();
-      trajectoryElement = null;
+    trajectoryElement.remove();
+    trajectoryElement = null;
   }
 }
 
