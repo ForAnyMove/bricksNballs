@@ -5,7 +5,16 @@ const stoppedContainer = document.getElementById('stopped-container');
 const stoppedCounter = document.getElementById('stopped-counter');
 const stopButton = document.getElementById('stop-button');
 
-const ballsSize = 10;
+const ballsSize = container.clientWidth/50;
+const elementsSize = container.clientWidth/11;
+
+waitingContainer.style.width = ballsSize + 'px';
+waitingContainer.style.height = ballsSize + 'px';
+waitingContainer.style.fontSize = elementsSize/2 + 'px';
+stoppedContainer.style.width = ballsSize + 'px';
+stoppedContainer.style.height = ballsSize + 'px';
+stoppedContainer.style.fontSize = elementsSize/2 + 'px';
+
 let balls = [];
 let waitingBalls = [];
 let stopPosition = {
@@ -64,10 +73,12 @@ const levels = [
         { type: 'triangle', mainAngle: 'LT', stacks: 5 },
         { type: 'triangle', mainAngle: 'LT', stacks: 5 },
         { type: 'triangle', mainAngle: 'LT', stacks: 5 },
+        { type: 'triangle', mainAngle: 'LT', stacks: 555 },
         { type: 'triangle', mainAngle: 'LT', stacks: 5 },
       ],
       [
         { type: 'triangle', mainAngle: 'LB', stacks: 5 },
+        ,
         ,
         ,
         ,
@@ -83,6 +94,7 @@ const levels = [
         { type: 'triangle', mainAngle: 'LB', stacks: 5 },
         ,
         { type: 'triangle', mainAngle: 'LB', stacks: 5 },
+        ,
         ,
         ,
         { type: 'triangle', mainAngle: 'LT', stacks: 5 },
@@ -92,6 +104,7 @@ const levels = [
       ],
       [
         { type: 'triangle', mainAngle: 'LB', stacks: 5 },
+        ,
         ,
         ,
         ,
@@ -109,6 +122,7 @@ const levels = [
         { type: 'box', stacks: 7 },
         ,
         ,
+        ,
         { type: 'box', stacks: 7 },
         { type: 'triangle', mainAngle: 'RB', stacks: 5 },
         { type: 'triangle', mainAngle: 'RB', stacks: 5 },
@@ -122,19 +136,18 @@ const levels = [
 const levelConfig = levels[1];
 
 // Создаем 10 шаров
-for (let i = 0; i < 10; i++) {
+for (let i = 0; i < 100; i++) {
   createBall();
 }
 
 // Генерация уровня
 function generateLevel(config) {
-  const elementSize = 50; // Размер элемента
 
   config.rows.forEach((row, rowIndex) => {
     row.forEach((cell, cellIndex) => {
       if (cell) {
-        const x = cellIndex * elementSize;
-        const y = rowIndex * elementSize;
+        const x = cellIndex * elementsSize;
+        const y = rowIndex * elementsSize;
         switch (cell.type) {
           case 'box':
             createBox(x, y, cell.stacks);
@@ -154,10 +167,11 @@ function generateLevel(config) {
 function createCounter(stacks) {
   const counterContainer = document.createElement('div');
   counterContainer.className = 'counter_container';
-  counterContainer.style.width = '50px';
-  counterContainer.style.height = '50px';
+  counterContainer.style.width = elementsSize + 'px';
+  counterContainer.style.height = elementsSize + 'px';
   const stacksCounter = document.createElement('span');
   stacksCounter.innerText = stacks;
+  stacksCounter.style.fontSize = elementsSize/3 + 'px';
   counterContainer.appendChild(stacksCounter);
   return counterContainer;
 }
@@ -167,6 +181,8 @@ function createBox(x, y, stacks) {
   const box = document.createElement('div');
   box.setAttribute('data-stacks', stacks);
   box.className = 'element box';
+  box.style.width = elementsSize + 'px';
+  box.style.height = elementsSize + 'px';
   box.style.left = x + 'px';
   box.style.top = y + 'px';
   box.appendChild(createCounter(stacks));
@@ -182,20 +198,20 @@ function createTriangle(x, y, mainAngle, stacks) {
 
   switch (mainAngle) {
     case 'RB':
-      triangle.style.borderLeft = '50px solid transparent';
-      triangle.style.borderBottom = '50px solid blue';
+      triangle.style.borderLeft = `${elementsSize}px solid transparent`;
+      triangle.style.borderBottom = `${elementsSize}px solid blue`;
       break;
     case 'LB':
-      triangle.style.borderRight = '50px solid transparent';
-      triangle.style.borderBottom = '50px solid blue';
+      triangle.style.borderRight = `${elementsSize}px solid transparent`;
+      triangle.style.borderBottom = `${elementsSize}px solid blue`;
       break;
     case 'RT':
-      triangle.style.borderLeft = '50px solid transparent';
-      triangle.style.borderTop = '50px solid blue';
+      triangle.style.borderLeft = `${elementsSize}px solid transparent`;
+      triangle.style.borderTop = `${elementsSize}px solid blue`;
       break;
     case 'LT':
-      triangle.style.borderRight = '50px solid transparent';
-      triangle.style.borderTop = '50px solid blue';
+      triangle.style.borderRight = `${elementsSize}px solid transparent`;
+      triangle.style.borderTop = `${elementsSize}px solid blue`;
       break;
   }
 
@@ -209,12 +225,15 @@ function createBonusBallsElement(x, y, bonus) {
   const box = document.createElement('div');
   box.className = 'element bonus-box add-balls-bonus';
   box.setAttribute('data-extra-balls', bonus);
+  box.style.width = elementsSize + 'px';
+  box.style.height = elementsSize + 'px';
   box.style.left = x + 'px';
   box.style.top = y + 'px';
   const bonusBallsElement = document.createElement('div');
   bonusBallsElement.className = 'circle-bonus bonus-balls-circle';
   const bonusTitle = document.createElement('span');
   bonusTitle.innerText = `+${bonus}`;
+  bonusTitle.style.fontSize = elementsSize/3 + 'px';
   bonusBallsElement.appendChild(bonusTitle);
   box.appendChild(bonusBallsElement);
   container.appendChild(box);
@@ -224,6 +243,9 @@ function createBonusBallsElement(x, y, bonus) {
 function createBall() {
   let ball = document.createElement('div');
   ball.className = 'ball';
+  ball.style.width = ballsSize + 'px';
+  ball.style.height = ballsSize + 'px';
+  ball.style.left = -ballsSize/2 + 'px';
   const ballElement = {
     element: ball,
     x: stopPosition.left,
@@ -244,7 +266,7 @@ function createBall() {
 function updateWaitingCounter() {
   const counterValue = waitingContainer.getElementsByClassName('ball').length;
   waitingCounter.innerText = counterValue === 0 ? '' : `x${counterValue}`;
-  if (extraBallsQue !== 0) {
+  if (extraBallsQue !== 0 && !isBallsInWaitingContainer) {
     waitingCounter.innerText += ` +${extraBallsQue}`
   }
 }
@@ -252,7 +274,7 @@ function updateWaitingCounter() {
 function updateStoppedCounter() {
   const counterValue = stoppedContainer.getElementsByClassName('ball').length;
   stoppedCounter.innerText = counterValue === 0 ? '' : `x${counterValue}`;
-  if (extraBallsQue !== 0) {
+  if (extraBallsQue !== 0 && isBallsInWaitingContainer) {
     stoppedCounter.innerText += ` +${extraBallsQue}`
   }
 }
@@ -283,7 +305,7 @@ function moveBall(ball, startedPosition) {
       ball.velY = -ball.velY;
     }
 
-    ball.element.style.left = ball.x + 'px';
+    ball.element.style.left = ball.x - ballsSize/2 + 'px';
     ball.element.style.top = ball.y + 'px';
 
     // Проверка столкновения с нижней гранью контейнера + принудительная остановка
@@ -310,7 +332,7 @@ function moveBall(ball, startedPosition) {
             container.clientHeight - ballRect.height + 'px';
           waitingContainer.appendChild(ball.element);
         }
-        ball.element.style.left = 0;
+        ball.element.style.left = 0 - ballsSize/2 + 'px';
         ball.element.style.top = 0;
         balls = balls.filter(
           (filteredBall) => filteredBall.element !== ball.element
@@ -675,7 +697,7 @@ function stopAnimation() {
 function stopBallAnimation(ball) {
   if (!ball.element.classList.contains('moving')) {
     ball.element.classList.add('moving');
-    ball.element.style.left = stopPosition.left + 'px';
+    ball.element.style.left = stopPosition.left - ballsSize/2 + 'px';
     ball.element.style.top = stopPosition.top + 'px';
     setTimeout(() => {
       if (isBallsInWaitingContainer) {
@@ -685,7 +707,7 @@ function stopBallAnimation(ball) {
       }
       ball.element.classList.remove('moving');
       ball.element.style.transform = '';
-      ball.element.style.left = 0;
+      ball.element.style.left = 0  - ballsSize/2 + 'px';
       ball.element.style.top = 0;
       balls = balls.filter(
         (filteredBall) => filteredBall.element !== ball.element
@@ -856,7 +878,7 @@ container.addEventListener('mouseup', function mouseUpHandler(event) {
   const releaseY = event.clientY - container.getBoundingClientRect().top;
 
   // Вычисление направления движения
-  const deltaX = releaseX - stopPosition.left;
+  const deltaX = releaseX - stopPosition.left - ballsSize/2;
   const deltaY = releaseY - stopPosition.top;
   const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
@@ -943,7 +965,7 @@ function createTrajectorySegment(x1, y1, x2, y2) {
   const angle = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
 
   segment.style.width = `${length / 2}px`;
-  segment.style.transform = `translate(${x1}px, ${y1}px) rotate(${angle}deg)`;
+  segment.style.transform = `translate(${x1-length}px, ${y1}px) rotate(${angle}deg)`;
 
   return segment;
 }

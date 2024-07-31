@@ -20,10 +20,9 @@ span {
   position: relative;
   overflow: hidden;
   margin: 0 auto;
-  width: 500px;
-  height: 300px;
-  border-radius: 5px;
-  box-shadow: inset 0 0 2px black;
+  width: 40vh;
+  height: 60vh;
+  border-radius: 1vh;
   background-color: white;
 }
 
@@ -36,8 +35,6 @@ span {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 10px;
-  height: 10px;
   border-radius: 50%;
 }
 
@@ -45,7 +42,7 @@ span {
 #waiting-counter,
 #stopped-counter {
   position: absolute;
-  top: -200%;
+  top: -300%;
   border-radius: 50%;
   padding: 2px 5px;
   white-space: nowrap;
@@ -53,28 +50,13 @@ span {
 
 .ball {
   position: absolute;
-  width: 10px;
-  height: 10px;
   border-radius: 100%;
   background-color: #ff0000;
   box-shadow: inset -5px -5px 5px rgba(0, 0, 0, .5), 15px 15px 2px rgba(0, 0, 0, .05);
 }
 
-#element2 {
-  width: 50px;
-  height: 50px;
-  position: absolute;
-  left: calc(50% - 25px);
-  top: calc(50% - 25px);
-  background-color: black;
-  border-radius: 5px;
-  box-shadow:  10px 10px 4px rgba(0, 0, 0, 0.476);
-}
-
 .element {
   position: absolute;
-  width: 50px;
-  height: 50px;
 }
 .box {
   background-color: gray;
@@ -116,9 +98,14 @@ span {
   justify-content: center;
 }
 
+.counter_container > span {
+  width: 50%;
+  text-align: center;
+}
+
 /* Positioning for different triangle orientations */
 .triangle-RB .counter_container {
-  transform: translateX(-50px);
+  transform: translateX(-100%);
 }
 
 .triangle-LB .counter_container {
@@ -126,11 +113,11 @@ span {
 }
 
 .triangle-RT .counter_container {
-  transform: translate(-50px, -50px);
+  transform: translate(-100%, -100%);
 }
 
 .triangle-LT .counter_container {
-  transform: translateY(-50px);
+  transform: translateY(-100%);
 }
 
 
