@@ -136,7 +136,7 @@ const levels = [
 const levelConfig = levels[1];
 
 // Создаем 10 шаров
-for (let i = 0; i < 100; i++) {
+for (let i = 0; i < 5; i++) {
   createBall();
 }
 
@@ -295,7 +295,7 @@ function moveBall(ball, startedPosition) {
     ball.y += ball.velY;
 
     // Проверка столкновения с контейнером
-    if (ball.x <= 0 || ball.x + ballRect.width >= container.clientWidth) {
+    if (ball.x-ballsSize/2 <= 0 || ball.x-ballsSize/2 + ballRect.width >= container.clientWidth) {
       ball.x -= ball.velX; // Шаг назад
       ball.velX = -ball.velX;
     }
@@ -363,16 +363,13 @@ function checkCollision(ball) {
   const rect1 = ball.element.getBoundingClientRect();
   const elements = document.querySelectorAll('.element');
 
-  const centerX = rect1.left + ballsSize / 2;
-  const centerY = rect1.top + ballsSize / 2;
-
   elements.forEach((element) => {
     const rect2 = element.getBoundingClientRect();
     if (
-      centerX > rect2.left &&
-      centerX < rect2.right &&
-      centerY > rect2.top &&
-      centerY < rect2.bottom
+      rect1.right > rect2.left &&
+      rect1.left < rect2.right &&
+      rect1.bottom > rect2.top &&
+      rect1.top < rect2.bottom
     ) {
       handleCollision(ball, element);
     }
@@ -393,7 +390,19 @@ function handleCollision(ball, element) {
     );
     if (
       isPointInTriangle(
-        { x: ballRect.left + ballsSize / 2, y: ballRect.top + ballsSize / 2 },
+        { x: ballRect.left, y: ballRect.top },
+        vertices
+      ) ||
+      isPointInTriangle(
+        { x: ballRect.right, y: ballRect.top },
+        vertices
+      ) ||
+      isPointInTriangle(
+        { x: ballRect.left, y: ballRect.bottom },
+        vertices
+      ) ||
+      isPointInTriangle(
+        { x: ballRect.right, y: ballRect.bottom },
         vertices
       )
     ) {
@@ -480,10 +489,10 @@ function getCollisionSideBox(prevX, prevY, x, y, element) {
     y2: rect.bottom,
   };
 
-  const distanceToLeft = intersectsRay(prevX, prevY, x, y, left);
-  const distanceToRight = intersectsRay(prevX, prevY, x, y, right);
-  const distanceToTop = intersectsRay(prevX, prevY, x, y, top);
-  const distanceToBottom = intersectsRay(prevX, prevY, x, y, bottom);
+  const distanceToLeft = intersectsRay(prevX+ballsSize/2, prevY, x+ballsSize/2, y, left);
+  const distanceToRight = intersectsRay(prevX-ballsSize/2, prevY, x-ballsSize/2, y, right);
+  const distanceToTop = intersectsRay(prevX, prevY+ballsSize/2, x, y+ballsSize/2, top);
+  const distanceToBottom = intersectsRay(prevX, prevY-ballsSize/2, x, y-ballsSize/2, bottom);
 
   const minDistance = Math.min(
     distanceToLeft,
@@ -532,10 +541,10 @@ function getCollisionSideTriangle(prevX, prevY, x, y, element) {
 
   let minDistance;
 
-  const distanceToLeft = intersectsRay(prevX, prevY, x, y, left);
-  const distanceToRight = intersectsRay(prevX, prevY, x, y, right);
-  const distanceToTop = intersectsRay(prevX, prevY, x, y, top);
-  const distanceToBottom = intersectsRay(prevX, prevY, x, y, bottom);
+  const distanceToLeft = intersectsRay(prevX+ballsSize/2, prevY, x+ballsSize/2, y, left);
+  const distanceToRight = intersectsRay(prevX-ballsSize/2, prevY, x-ballsSize/2, y, right);
+  const distanceToTop = intersectsRay(prevX, prevY+ballsSize/2, x, y+ballsSize/2, top);
+  const distanceToBottom = intersectsRay(prevX, prevY-ballsSize/2, x, y-ballsSize/2, bottom);
   let distanceToHypotenuse;
   // Проверка для гипотенузы треугольника
   let hypotenuse;
@@ -546,7 +555,7 @@ function getCollisionSideTriangle(prevX, prevY, x, y, element) {
       x2: rect.right,
       y2: rect.top,
     };
-    distanceToHypotenuse = intersectsRay(prevX, prevY, x, y, hypotenuse);
+    distanceToHypotenuse = intersectsRay(prevX+ballsSize/2, prevY+ballsSize/2, x+ballsSize/2, y+ballsSize/2, hypotenuse);
     minDistance = Math.min(
       distanceToRight,
       distanceToBottom,
@@ -559,7 +568,7 @@ function getCollisionSideTriangle(prevX, prevY, x, y, element) {
       x2: rect.left,
       y2: rect.top,
     };
-    distanceToHypotenuse = intersectsRay(prevX, prevY, x, y, hypotenuse);
+    distanceToHypotenuse = intersectsRay(prevX-ballsSize/2, prevY+ballsSize/2, x-ballsSize/2, y+ballsSize/2, hypotenuse);
     minDistance = Math.min(
       distanceToLeft,
       distanceToBottom,
@@ -572,7 +581,7 @@ function getCollisionSideTriangle(prevX, prevY, x, y, element) {
       x2: rect.right,
       y2: rect.bottom,
     };
-    distanceToHypotenuse = intersectsRay(prevX, prevY, x, y, hypotenuse);
+    distanceToHypotenuse = intersectsRay(prevX+ballsSize/2, prevY-ballsSize/2, x+ballsSize/2, y-ballsSize/2, hypotenuse);
     minDistance = Math.min(
       distanceToRight,
       distanceToTop,
@@ -585,7 +594,7 @@ function getCollisionSideTriangle(prevX, prevY, x, y, element) {
       x2: rect.left,
       y2: rect.bottom,
     };
-    distanceToHypotenuse = intersectsRay(prevX, prevY, x, y, hypotenuse);
+    distanceToHypotenuse = intersectsRay(prevX-ballsSize/2, prevY-ballsSize/2, x-ballsSize/2, y-ballsSize/2, hypotenuse);
     minDistance = Math.min(distanceToLeft, distanceToTop, distanceToHypotenuse);
   }
 
@@ -628,9 +637,9 @@ function intersectsRay(x1, y1, x2, y2, line) {
   const intersectionX = x1 + t1 * dx1;
   const intersectionY = y1 + t1 * dy1;
   const distance = Math.sqrt(
-    Math.pow(intersectionX - x1, 2) + Math.pow(intersectionY - y1, 2)
+    Math.pow(intersectionX - x2, 2) + Math.pow(intersectionY - y2, 2)
   );
-
+  
   return distance;
 }
 
@@ -743,94 +752,6 @@ function isPointInTriangle(pt, v) {
       2.0
   );
   return area1 + area2 + area3 === areaOrig;
-}
-
-function pointToLineDistance(x, y, x1, y1, x2, y2) {
-  const A = x - x1;
-  const B = y - y1;
-  const C = x2 - x1;
-  const D = y2 - y1;
-
-  const dot = A * C + B * D;
-  const len_sq = C * C + D * D;
-  const param = dot / len_sq;
-
-  let xx, yy;
-
-  if (param < 0 || (x1 === x2 && y1 === y2)) {
-    xx = x1;
-    yy = y1;
-  } else if (param > 1) {
-    xx = x2;
-    yy = y2;
-  } else {
-    xx = x1 + param * C;
-    yy = y1 + param * D;
-  }
-
-  const dx = x - xx;
-  const dy = y - yy;
-  return Math.sqrt(dx * dx + dy * dy);
-}
-
-function getPreviousPosition(rect, velX, velY) {
-  return {
-    left: rect.left - velX * 3,
-    right: rect.right - velX * 3,
-    top: rect.top - velY * 3,
-    bottom: rect.bottom - velY * 3,
-  };
-}
-
-function checkCollisionWithTriangle(rect, vertices, velX, velY) {
-  // Вычисление центра текущей позиции
-  const centerX = (rect.left + rect.right) / 2;
-  const centerY = (rect.top + rect.bottom) / 2;
-
-  if (isPointInTriangle({ x: centerX, y: centerY }, vertices)) {
-    // Получение предыдущей позиции
-    const prevRect = getPreviousPosition(rect, velX, velY);
-
-    // Вычисление центра предыдущей позиции
-    const prevCenterX = (prevRect.left + prevRect.right) / 2;
-    const prevCenterY = (prevRect.top + prevRect.bottom) / 2;
-
-    const distToLeft = Math.abs(centerX - vertices[0].x);
-    const distToRight = Math.abs(centerX - vertices[2].x);
-    const distToTop = Math.abs(centerY - vertices[0].y);
-    const distToBottom = Math.abs(centerY - vertices[2].y);
-
-    const hypotenuse = {
-      x1: vertices[0].x,
-      y1: vertices[0].y,
-      x2: vertices[2].x,
-      y2: vertices[2].y,
-    };
-
-    const distToHypotenuse = pointToLineDistance(
-      prevCenterX,
-      prevCenterY,
-      hypotenuse.x1,
-      hypotenuse.y1,
-      hypotenuse.x2,
-      hypotenuse.y2
-    );
-
-    const minDist = Math.min(
-      distToLeft,
-      distToRight,
-      distToTop,
-      distToBottom,
-      distToHypotenuse
-    );
-
-    if (minDist === distToHypotenuse) return 'hypotenuse';
-    if (minDist === distToLeft) return 'left';
-    if (minDist === distToRight) return 'right';
-    if (minDist === distToTop) return 'top';
-    if (minDist === distToBottom) return 'bottom';
-  }
-  return null;
 }
 
 function getTriangleVertices(triangle, rect) {

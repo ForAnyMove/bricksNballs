@@ -20,7 +20,7 @@ span {
   position: relative;
   overflow: hidden;
   margin: 0 auto;
-  width: 40vh;
+  width: 40vh; /* 40vh */
   height: 60vh;
   border-radius: 1vh;
   background-color: white;
