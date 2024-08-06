@@ -4,16 +4,26 @@ const waitingCounter = document.getElementById('waiting-counter');
 const stoppedContainer = document.getElementById('stopped-container');
 const stoppedCounter = document.getElementById('stopped-counter');
 const stopButton = document.getElementById('stop-button');
+const scrollControlButton = document.getElementById('scroll_control_button');
+const noActiveGameZonePanel = document.getElementById(
+  'bottom_game_zone_panel-no_active'
+);
+const bonusPanel = document.getElementById('bonuses_panel');
+const scrollPanel = document.getElementById('scroll_panel');
+const scrollPanelArrowBack = document.getElementById('scroll_panel-arrow_back');
 
-const ballsSize = container.clientWidth/50;
-const elementsSize = container.clientWidth/11;
+const ballsSize = container.clientWidth / 50;
+const elementsSize = container.clientWidth / 11;
 
 waitingContainer.style.width = ballsSize + 'px';
 waitingContainer.style.height = ballsSize + 'px';
-waitingContainer.style.fontSize = elementsSize/2 + 'px';
+waitingContainer.style.fontSize = elementsSize / 2 + 'px';
 stoppedContainer.style.width = ballsSize + 'px';
 stoppedContainer.style.height = ballsSize + 'px';
-stoppedContainer.style.fontSize = elementsSize/2 + 'px';
+stoppedContainer.style.fontSize = elementsSize / 2 + 'px';
+
+stopButton.style.display = 'none';
+scrollPanel.style.display = 'none';
 
 let balls = [];
 let waitingBalls = [];
@@ -27,11 +37,9 @@ let isBallsInWaitingContainer = true;
 let forceStopBallsMoving = false;
 let trajectoryElement;
 let extraBallsQue = 0;
+let temporaryExtraBalls = 0;
 
 const maxTrajectoryLength = container.offsetHeight * 1.2;
-
-container.addEventListener('mousedown', startDrawingTrajectory);
-container.addEventListener('mousemove', updateTrajectory);
 
 const containerRect = container.getBoundingClientRect();
 
@@ -111,8 +119,8 @@ const levels = [
         ,
         ,
         ,
-        { type: 'addBalls', bonus: 1},
-        { type: 'addBalls', bonus: 3},
+        { type: 'addBalls', bonus: 1 },
+        { type: 'addBalls', bonus: 3 },
         { type: 'triangle', mainAngle: 'RB', stacks: 5 },
       ],
       [
@@ -130,19 +138,50 @@ const levels = [
       ],
     ],
   },
+  {
+    rows: [
+      [
+        { type: 'triangle', mainAngle: 'RB', stacks: 5 },
+        { type: 'triangle', mainAngle: 'RB', stacks: 5 },
+        { type: 'triangle', mainAngle: 'RB', stacks: 5 },
+        { type: 'box', stacks: 7 },
+        ,
+        { type: 'laser', direction: 'TB' },
+        { type: 'laser', direction: 'LR' },
+        { type: 'box', stacks: 7 },
+        { type: 'triangle', mainAngle: 'RB', stacks: 5 },
+        { type: 'triangle', mainAngle: 'RB', stacks: 5 },
+        { type: 'triangle', mainAngle: 'RB', stacks: 5 },
+      ],
+    ],
+  },
 ];
 
 // Выбираем нужный уровень
-const levelConfig = levels[1];
+const levelConfig = levels[2];
 
 // Создаем 10 шаров
-for (let i = 0; i < 5; i++) {
+for (let i = 0; i < 1; i++) {
   createBall();
 }
 
+generateLevel(levelConfig);
+stopButton.addEventListener('click', stopAnimation);
+container.addEventListener('mousedown', startDrawingTrajectory);
+container.addEventListener('mousemove', updateTrajectory);
+
+// Переключение между бонусами и управлением с помощью скролла
+scrollControlButton.addEventListener('click', function () {
+  bonusPanel.style.display = 'none';
+  scrollPanel.style.display = 'flex';
+});
+scrollPanelArrowBack.addEventListener('click', function () {
+  bonusPanel.style.display = 'flex';
+  scrollPanel.style.display = 'none';
+});
+
 // Генерация уровня
 function generateLevel(config) {
-
   config.rows.forEach((row, rowIndex) => {
     row.forEach((cell, cellIndex) => {
       if (cell) {
@@ -158,10 +197,80 @@ function generateLevel(config) {
           case 'addBalls':
             createBonusBallsElement(x, y, cell.bonus);
             break;
+          case 'laser':
+            createLaserElement(x, y, cell.direction);
+            break;
         }
       }
     });
   });
+}
+
+// Создание новой строки блоков со сдвигом вниз
+function addNewLineClassicMode() {
+  const elements = document.querySelectorAll('.element');
+
+  elements.forEach((element) => {
+    element.style.top = element.offsetTop + elementsSize + 'px';
+  });
+
+  generateLevel(newLineGenerating(10, 8));
+}
+
+// Генерация строки случайных элементов (!дополнить типами элементов)
+function newLineGenerating(length, stacks) {
+  function createRandomElement(stack) {
+    const randomNumber = Math.floor(Math.random() * 100);
+    if (randomNumber >= 0 && randomNumber < 15) {
+      return {
+        type: 'box',
+        stacks: stack,
+      };
+    } else if (randomNumber >= 15 && randomNumber < 50) {
+      const randomTriangleAngleType = Math.floor(Math.random() * 4);
+      switch (randomTriangleAngleType) {
+        case 0:
+          return {
+            type: 'triangle',
+            mainAngle: 'RB',
+            stacks: stack,
+          };
+        case 1:
+          return {
+            type: 'triangle',
+            mainAngle: 'LB',
+            stacks: stack,
+          };
+        case 2:
+          return {
+            type: 'triangle',
+            mainAngle: 'RT',
+            stacks: stack,
+          };
+        case 3:
+          return {
+            type: 'triangle',
+            mainAngle: 'LT',
+            stacks: stack,
+          };
+      }
+    } else if (randomNumber >= 50 && randomNumber < 95) {
+      return;
+    } else {
+      return {
+        type: 'addBalls',
+        bonus: 1,
+      };
+    }
+  }
+  const newLine = {
+    rows: [[]],
+  };
+  for (let i = 0; i < length; i++) {
+    newLine.rows[0].push(createRandomElement(stacks));
+  }
+
+  return newLine;
 }
 
 function createCounter(stacks) {
@@ -171,7 +280,7 @@ function createCounter(stacks) {
   counterContainer.style.height = elementsSize + 'px';
   const stacksCounter = document.createElement('span');
   stacksCounter.innerText = stacks;
-  stacksCounter.style.fontSize = elementsSize/3 + 'px';
+  stacksCounter.style.fontSize = elementsSize / 3 + 'px';
   counterContainer.appendChild(stacksCounter);
   return counterContainer;
 }
@@ -233,19 +342,41 @@ function createBonusBallsElement(x, y, bonus) {
   bonusBallsElement.className = 'circle-bonus bonus-balls-circle';
   const bonusTitle = document.createElement('span');
   bonusTitle.innerText = `+${bonus}`;
-  bonusTitle.style.fontSize = elementsSize/3 + 'px';
+  bonusTitle.style.fontSize = elementsSize / 3 + 'px';
   bonusBallsElement.appendChild(bonusTitle);
   box.appendChild(bonusBallsElement);
+  container.appendChild(box);
+}
+
+function createLaserElement(x, y, direction) {
+  const box = document.createElement('div');
+  box.className = 'element bonus-box laser-bonus';
+  box.dataset.direction = direction;
+  box.dataset.activated = 'false';
+  box.style.width = elementsSize + 'px';
+  box.style.height = elementsSize + 'px';
+  box.style.left = x + 'px';
+  box.style.top = y + 'px';
+  const laserElement = document.createElement('div');
+  laserElement.className = 'circle-bonus laser-circle';
+  const bonusTitle = document.createElement('span');
+
+  bonusTitle.innerText = '<>';
+  bonusTitle.style.transform = direction === 'TB' ? 'rotate(90deg)' : null;
+  bonusTitle.style.fontSize = elementsSize / 3 + 'px';
+  laserElement.appendChild(bonusTitle);
+  box.appendChild(laserElement);
   container.appendChild(box);
 }
 
 // Создание мяча и добавление его в массив мячей
 function createBall() {
   let ball = document.createElement('div');
+  ball.dataset.isThisBonusUsed = 'false';
   ball.className = 'ball';
   ball.style.width = ballsSize + 'px';
   ball.style.height = ballsSize + 'px';
-  ball.style.left = -ballsSize/2 + 'px';
+  ball.style.left = -ballsSize / 2 + 'px';
   const ballElement = {
     element: ball,
     x: stopPosition.left,
@@ -267,7 +398,7 @@ function updateWaitingCounter() {
   const counterValue = waitingContainer.getElementsByClassName('ball').length;
   waitingCounter.innerText = counterValue === 0 ? '' : `x${counterValue}`;
   if (extraBallsQue !== 0 && !isBallsInWaitingContainer) {
-    waitingCounter.innerText += ` +${extraBallsQue}`
+    waitingCounter.innerText += ` +${extraBallsQue}`;
   }
 }
 
@@ -275,7 +406,7 @@ function updateStoppedCounter() {
   const counterValue = stoppedContainer.getElementsByClassName('ball').length;
   stoppedCounter.innerText = counterValue === 0 ? '' : `x${counterValue}`;
   if (extraBallsQue !== 0 && isBallsInWaitingContainer) {
-    stoppedCounter.innerText += ` +${extraBallsQue}`
+    stoppedCounter.innerText += ` +${extraBallsQue}`;
   }
 }
 
@@ -294,8 +425,15 @@ function moveBall(ball, startedPosition) {
     ball.x += ball.velX;
     ball.y += ball.velY;
 
+    // Поворот шара в направлении движения
+    let angle = Math.atan2(ball.velY, ball.velX) * (180 / Math.PI);
+    ball.element.style.transform = `rotate(${angle - 90}deg)`;
+
     // Проверка столкновения с контейнером
-    if (ball.x-ballsSize/2 <= 0 || ball.x-ballsSize/2 + ballRect.width >= container.clientWidth) {
+    if (
+      ball.x - ballsSize / 2 <= 0 ||
+      ball.x - ballsSize / 2 + ballRect.width >= container.clientWidth
+    ) {
       ball.x -= ball.velX; // Шаг назад
       ball.velX = -ball.velX;
     }
@@ -305,7 +443,7 @@ function moveBall(ball, startedPosition) {
       ball.velY = -ball.velY;
     }
 
-    ball.element.style.left = ball.x - ballsSize/2 + 'px';
+    ball.element.style.left = ball.x - ballsSize / 2 + 'px';
     ball.element.style.top = ball.y + 'px';
 
     // Проверка столкновения с нижней гранью контейнера + принудительная остановка
@@ -315,6 +453,7 @@ function moveBall(ball, startedPosition) {
     ) {
       ballStopped = true;
       ball.element.style.top = container.clientHeight - ballRect.height + 'px';
+      ball.element.style.transform = 'rotate(0)';
       if (!stopPosition.isUpdated) {
         stopPosition.isUpdated = true;
         stopPosition.left = forceStopBallsMoving ? stopPosition.left : ball.x;
@@ -332,7 +471,7 @@ function moveBall(ball, startedPosition) {
             container.clientHeight - ballRect.height + 'px';
           waitingContainer.appendChild(ball.element);
         }
-        ball.element.style.left = 0 - ballsSize/2 + 'px';
+        ball.element.style.left = 0 - ballsSize / 2 + 'px';
         ball.element.style.top = 0;
         balls = balls.filter(
           (filteredBall) => filteredBall.element !== ball.element
@@ -389,22 +528,10 @@ function handleCollision(ball, element) {
       element.getBoundingClientRect()
     );
     if (
-      isPointInTriangle(
-        { x: ballRect.left, y: ballRect.top },
-        vertices
-      ) ||
-      isPointInTriangle(
-        { x: ballRect.right, y: ballRect.top },
-        vertices
-      ) ||
-      isPointInTriangle(
-        { x: ballRect.left, y: ballRect.bottom },
-        vertices
-      ) ||
-      isPointInTriangle(
-        { x: ballRect.right, y: ballRect.bottom },
-        vertices
-      )
+      isPointInTriangle({ x: ballRect.left, y: ballRect.top }, vertices) ||
+      isPointInTriangle({ x: ballRect.right, y: ballRect.top }, vertices) ||
+      isPointInTriangle({ x: ballRect.left, y: ballRect.bottom }, vertices) ||
+      isPointInTriangle({ x: ballRect.right, y: ballRect.bottom }, vertices)
     ) {
       const side = getCollisionSideTriangle(
         ballPrevX,
@@ -460,13 +587,96 @@ function handleCollision(ball, element) {
         counter.innerText = stacks;
       }
     }
-  } else if (element.classList.contains('bonus-box')) {
-    const extraBalls = element.dataset.extraBalls;
-    extraBallsQue += +extraBalls;
-    element.remove();
-    isBallsInWaitingContainer
-      ? updateStoppedCounter()
-      : updateWaitingCounter();
+  } else if (element.classList.contains('add-balls-bonus')) {
+    const circleElement = element.querySelector('.circle-bonus');
+    const circleElementRect = circleElement.getBoundingClientRect();
+
+    if (
+      isPointInCircle(ballRect.left, ballRect.top, {
+        x: circleElementRect.left - circleElementRect.width / 2,
+        y: circleElementRect.top - circleElementRect.height / 2,
+        r: circleElementRect.width / 2,
+      }) ||
+      isPointInCircle(ballRect.left, ballRect.bottom, {
+        x: circleElementRect.left - circleElementRect.width / 2,
+        y: circleElementRect.top - circleElementRect.height / 2,
+        r: circleElementRect.width / 2,
+      }) ||
+      isPointInCircle(ballRect.right, ballRect.top, {
+        x: circleElementRect.left - circleElementRect.width / 2,
+        y: circleElementRect.top - circleElementRect.height / 2,
+        r: circleElementRect.width / 2,
+      }) ||
+      isPointInCircle(ballRect.right, ballRect.bottom, {
+        x: circleElementRect.left - circleElementRect.width / 2,
+        y: circleElementRect.top - circleElementRect.height / 2,
+        r: circleElementRect.width / 2,
+      })
+    ) {
+      const extraBalls = element.dataset.extraBalls;
+      extraBallsQue += +extraBalls;
+      element.remove();
+      isBallsInWaitingContainer
+        ? updateStoppedCounter()
+        : updateWaitingCounter();
+    }
+  } else if (element.classList.contains('laser-bonus')) {
+    const circleElement = element.querySelector('.circle-bonus');
+    const circleElementRect = circleElement.getBoundingClientRect();
+
+    if (
+      isPointInCircle(ballRect.left, ballRect.top, {
+        x: circleElementRect.left + circleElementRect.width / 2,
+        y: circleElementRect.top + circleElementRect.height / 2,
+        r: circleElementRect.width / 2,
+      }) ||
+      isPointInCircle(ballRect.left, ballRect.bottom, {
+        x: circleElementRect.left + circleElementRect.width / 2,
+        y: circleElementRect.top + circleElementRect.height / 2,
+        r: circleElementRect.width / 2,
+      }) ||
+      isPointInCircle(ballRect.right, ballRect.top, {
+        x: circleElementRect.left + circleElementRect.width / 2,
+        y: circleElementRect.top + circleElementRect.height / 2,
+        r: circleElementRect.width / 2,
+      }) ||
+      isPointInCircle(ballRect.right, ballRect.bottom, {
+        x: circleElementRect.left + circleElementRect.width / 2,
+        y: circleElementRect.top + circleElementRect.height / 2,
+        r: circleElementRect.width / 2,
+      })
+    ) {
+      if (ball.element.dataset.isThisBonusUsed === 'false') {
+        const laserRect = element.getBoundingClientRect();
+        ball.element.dataset.isThisBonusUsed = 'true';
+        element.dataset.activated = 'true';
+
+        // Создание контейнера лазера
+        if (element.dataset.direction === 'TB') {
+          createLaserContainer(
+            laserRect.left -
+              containerRect.left +
+              elementsSize / 2 -
+              (laserRect.width * 0.3) / 2,
+            0,
+            laserRect.width * 0.3,
+            containerRect.height
+          );
+        } else if (element.dataset.direction === 'LR') {
+          createLaserContainer(
+            0,
+            laserRect.top -
+              containerRect.top +
+              elementsSize / 2 -
+              (laserRect.height * 0.3) / 2,
+            containerRect.width,
+            laserRect.height * 0.3
+          );
+        }
+      }
+    } else {
+      ball.element.dataset.isThisBonusUsed = 'false';
+    }
   }
 }
 
@@ -489,10 +699,34 @@ function getCollisionSideBox(prevX, prevY, x, y, element) {
     y2: rect.bottom,
   };
 
-  const distanceToLeft = intersectsRay(prevX+ballsSize/2, prevY, x+ballsSize/2, y, left);
-  const distanceToRight = intersectsRay(prevX-ballsSize/2, prevY, x-ballsSize/2, y, right);
-  const distanceToTop = intersectsRay(prevX, prevY+ballsSize/2, x, y+ballsSize/2, top);
-  const distanceToBottom = intersectsRay(prevX, prevY-ballsSize/2, x, y-ballsSize/2, bottom);
+  const distanceToLeft = intersectsRay(
+    prevX + ballsSize / 2,
+    prevY,
+    x + ballsSize / 2,
+    y,
+    left
+  );
+  const distanceToRight = intersectsRay(
+    prevX - ballsSize / 2,
+    prevY,
+    x - ballsSize / 2,
+    y,
+    right
+  );
+  const distanceToTop = intersectsRay(
+    prevX,
+    prevY + ballsSize / 2,
+    x,
+    y + ballsSize / 2,
+    top
+  );
+  const distanceToBottom = intersectsRay(
+    prevX,
+    prevY - ballsSize / 2,
+    x,
+    y - ballsSize / 2,
+    bottom
+  );
 
   const minDistance = Math.min(
     distanceToLeft,
@@ -541,10 +775,34 @@ function getCollisionSideTriangle(prevX, prevY, x, y, element) {
 
   let minDistance;
 
-  const distanceToLeft = intersectsRay(prevX+ballsSize/2, prevY, x+ballsSize/2, y, left);
-  const distanceToRight = intersectsRay(prevX-ballsSize/2, prevY, x-ballsSize/2, y, right);
-  const distanceToTop = intersectsRay(prevX, prevY+ballsSize/2, x, y+ballsSize/2, top);
-  const distanceToBottom = intersectsRay(prevX, prevY-ballsSize/2, x, y-ballsSize/2, bottom);
+  const distanceToLeft = intersectsRay(
+    prevX + ballsSize / 2,
+    prevY,
+    x + ballsSize / 2,
+    y,
+    left
+  );
+  const distanceToRight = intersectsRay(
+    prevX - ballsSize / 2,
+    prevY,
+    x - ballsSize / 2,
+    y,
+    right
+  );
+  const distanceToTop = intersectsRay(
+    prevX,
+    prevY + ballsSize / 2,
+    x,
+    y + ballsSize / 2,
+    top
+  );
+  const distanceToBottom = intersectsRay(
+    prevX,
+    prevY - ballsSize / 2,
+    x,
+    y - ballsSize / 2,
+    bottom
+  );
   let distanceToHypotenuse;
   // Проверка для гипотенузы треугольника
   let hypotenuse;
@@ -555,7 +813,13 @@ function getCollisionSideTriangle(prevX, prevY, x, y, element) {
       x2: rect.right,
       y2: rect.top,
     };
-    distanceToHypotenuse = intersectsRay(prevX+ballsSize/2, prevY+ballsSize/2, x+ballsSize/2, y+ballsSize/2, hypotenuse);
+    distanceToHypotenuse = intersectsRay(
+      prevX + ballsSize / 2,
+      prevY + ballsSize / 2,
+      x + ballsSize / 2,
+      y + ballsSize / 2,
+      hypotenuse
+    );
     minDistance = Math.min(
       distanceToRight,
       distanceToBottom,
@@ -568,7 +832,13 @@ function getCollisionSideTriangle(prevX, prevY, x, y, element) {
       x2: rect.left,
       y2: rect.top,
     };
-    distanceToHypotenuse = intersectsRay(prevX-ballsSize/2, prevY+ballsSize/2, x-ballsSize/2, y+ballsSize/2, hypotenuse);
+    distanceToHypotenuse = intersectsRay(
+      prevX - ballsSize / 2,
+      prevY + ballsSize / 2,
+      x - ballsSize / 2,
+      y + ballsSize / 2,
+      hypotenuse
+    );
     minDistance = Math.min(
       distanceToLeft,
       distanceToBottom,
@@ -581,7 +851,13 @@ function getCollisionSideTriangle(prevX, prevY, x, y, element) {
       x2: rect.right,
       y2: rect.bottom,
     };
-    distanceToHypotenuse = intersectsRay(prevX+ballsSize/2, prevY-ballsSize/2, x+ballsSize/2, y-ballsSize/2, hypotenuse);
+    distanceToHypotenuse = intersectsRay(
+      prevX + ballsSize / 2,
+      prevY - ballsSize / 2,
+      x + ballsSize / 2,
+      y - ballsSize / 2,
+      hypotenuse
+    );
     minDistance = Math.min(
       distanceToRight,
       distanceToTop,
@@ -594,7 +870,13 @@ function getCollisionSideTriangle(prevX, prevY, x, y, element) {
       x2: rect.left,
       y2: rect.bottom,
     };
-    distanceToHypotenuse = intersectsRay(prevX-ballsSize/2, prevY-ballsSize/2, x-ballsSize/2, y-ballsSize/2, hypotenuse);
+    distanceToHypotenuse = intersectsRay(
+      prevX - ballsSize / 2,
+      prevY - ballsSize / 2,
+      x - ballsSize / 2,
+      y - ballsSize / 2,
+      hypotenuse
+    );
     minDistance = Math.min(distanceToLeft, distanceToTop, distanceToHypotenuse);
   }
 
@@ -639,8 +921,51 @@ function intersectsRay(x1, y1, x2, y2, line) {
   const distance = Math.sqrt(
     Math.pow(intersectionX - x2, 2) + Math.pow(intersectionY - y2, 2)
   );
-  
+
   return distance;
+}
+
+function createLaserContainer(x, y, width, height) {
+  const laserContainer = document.createElement('div');
+  laserContainer.className = 'laser-container';
+  laserContainer.style.left = x + 'px';
+  laserContainer.style.top = y + 'px';
+  laserContainer.style.width = width + 'px';
+  laserContainer.style.height = height + 'px';
+  container.appendChild(laserContainer);
+
+  checkIntersections(laserContainer.getBoundingClientRect());
+
+  setTimeout(() => {
+    laserContainer.remove();
+  }, 100);
+}
+
+// Проверка пересечения лазера с элементами
+function checkIntersections(laserRect) {
+  const elements = document.querySelectorAll('.box, .triangle');
+  elements.forEach((element) => {
+    const elementRect = element.getBoundingClientRect();
+    if (
+      laserRect.left < elementRect.right &&
+      laserRect.right > elementRect.left &&
+      laserRect.top < elementRect.bottom &&
+      laserRect.bottom > elementRect.top
+    ) {
+      decreaseStacks(element);
+    }
+  });
+}
+
+// Снятие стаков с элемента
+function decreaseStacks(element) {
+  let stacks = parseInt(element.getAttribute('data-stacks'), 10);
+  if (stacks > 1) {
+    element.setAttribute('data-stacks', stacks - 1);
+    element.querySelector('span').innerText = stacks - 1;
+  } else {
+    element.remove();
+  }
 }
 
 function checkAllBallsStopped() {
@@ -652,6 +977,12 @@ function checkAllBallsStopped() {
         : waitingContainer
     )
   ) {
+    const usedBonuses = document.querySelectorAll(
+      '.bonus-box[data-activated="true"]'
+    );
+    usedBonuses.forEach((laser) => {
+      laser.remove();
+    });
     stopPosition.isUpdated = false;
     isAnimating = false;
     isBallsInWaitingContainer = !isBallsInWaitingContainer;
@@ -662,9 +993,24 @@ function checkAllBallsStopped() {
       }
       extraBallsQue = 0;
       !isBallsInWaitingContainer
-      ? updateStoppedCounter()
-      : updateWaitingCounter();
+        ? updateStoppedCounter()
+        : updateWaitingCounter();
     }
+    if (temporaryExtraBalls !== 0) {
+      for (let i = 0; i < temporaryExtraBalls; i++) {
+        waitingBalls[0].element.remove();
+        waitingBalls.shift();
+      }
+      temporaryExtraBalls = 0;
+      !isBallsInWaitingContainer
+        ? updateStoppedCounter()
+        : updateWaitingCounter();
+    }
+    addNewLineClassicMode();
+    noActiveGameZonePanel.style.display = 'flex';
+    stopButton.style.display = 'none';
+    bonusPanel.style.display = 'flex';
+    scrollPanel.style.display = 'none';
   }
 }
 
@@ -675,7 +1021,9 @@ function startBalls(velX, velY) {
   const startedPosition = {
     left: stopPosition.left,
     top: stopPosition.top,
-  }
+  };
+  stopButton.style.display = 'block';
+  noActiveGameZonePanel.style.display = 'none';
   waitingBalls.forEach((ball, index) => {
     setTimeout(() => {
       ball.velX = velX;
@@ -706,7 +1054,7 @@ function stopAnimation() {
 function stopBallAnimation(ball) {
   if (!ball.element.classList.contains('moving')) {
     ball.element.classList.add('moving');
-    ball.element.style.left = stopPosition.left - ballsSize/2 + 'px';
+    ball.element.style.left = stopPosition.left - ballsSize / 2 + 'px';
     ball.element.style.top = stopPosition.top + 'px';
     setTimeout(() => {
       if (isBallsInWaitingContainer) {
@@ -716,7 +1064,7 @@ function stopBallAnimation(ball) {
       }
       ball.element.classList.remove('moving');
       ball.element.style.transform = '';
-      ball.element.style.left = 0  - ballsSize/2 + 'px';
+      ball.element.style.left = 0 - ballsSize / 2 + 'px';
       ball.element.style.top = 0;
       balls = balls.filter(
         (filteredBall) => filteredBall.element !== ball.element
@@ -752,6 +1100,16 @@ function isPointInTriangle(pt, v) {
       2.0
   );
   return area1 + area2 + area3 === areaOrig;
+}
+
+// Функция для проверки, находится ли точка внутри круга
+function isPointInCircle(x, y, circle) {
+  const dx = x - circle.x;
+  const dy = y - circle.y;
+  const distanceSquared = dx * dx + dy * dy;
+  const radiusSquared = circle.r * circle.r;
+
+  return distanceSquared <= radiusSquared;
 }
 
 function getTriangleVertices(triangle, rect) {
@@ -799,7 +1157,7 @@ container.addEventListener('mouseup', function mouseUpHandler(event) {
   const releaseY = event.clientY - container.getBoundingClientRect().top;
 
   // Вычисление направления движения
-  const deltaX = releaseX - stopPosition.left - ballsSize/2;
+  const deltaX = releaseX - stopPosition.left - ballsSize / 2;
   const deltaY = releaseY - stopPosition.top;
   const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
@@ -820,8 +1178,8 @@ function startDrawingTrajectory(event) {
   const { clientX, clientY } = event;
   const startX = stopPosition.left + ballsSize / 2;
   const startY = stopPosition.top + ballsSize / 2;
-  const endX = clientX - container.getBoundingClientRect().left;
-  const endY = clientY - container.getBoundingClientRect().top;
+  const endX = clientX - container.getBoundingClientRect().left + ballsSize / 2;
+  const endY = clientY - container.getBoundingClientRect().top + ballsSize / 2;
   drawTrajectory(startX, startY, endX, endY);
 }
 
@@ -830,8 +1188,8 @@ function updateTrajectory(event) {
   const { clientX, clientY } = event;
   const startX = stopPosition.left + ballsSize / 2;
   const startY = stopPosition.top + ballsSize / 2;
-  const endX = clientX - container.getBoundingClientRect().left;
-  const endY = clientY - container.getBoundingClientRect().top;
+  const endX = clientX - container.getBoundingClientRect().left + ballsSize / 2;
+  const endY = clientY - container.getBoundingClientRect().top + ballsSize / 2;
   drawTrajectory(startX, startY, endX, endY);
 }
 
@@ -886,7 +1244,8 @@ function createTrajectorySegment(x1, y1, x2, y2) {
   const angle = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
 
   segment.style.width = `${length / 2}px`;
-  segment.style.transform = `translate(${x1-length}px, ${y1}px) rotate(${angle}deg)`;
+  segment.style.left = 0 - length / 2 + 'px';
+  segment.style.transform = `translate(${x1}px, ${y1}px) rotate(${angle}deg)`;
 
   return segment;
 }
@@ -898,5 +1257,60 @@ function clearTrajectory() {
   }
 }
 
-generateLevel(levelConfig);
-stopButton.addEventListener('click', stopAnimation);
+// Расходуемые бонусные эффекты
+
+// Раскол, функция, снижающая прочность всех блоков на 33%
+function crackBlocks() {
+  const crackBlocksButtonCounter = document.getElementById(
+    'bonuses_panel-crack_blocks-counter'
+  );
+  let stacks = crackBlocksButtonCounter.dataset.stacks;
+  if (stacks === '0') {
+    return;
+  }
+  stacks--;
+  crackBlocksButtonCounter.dataset.stacks = stacks;
+  crackBlocksButtonCounter.innerText = `x${stacks}`;
+  const elements = document.querySelectorAll('.element');
+
+  elements.forEach((element) => {
+    // Уменьшение счетчика и удаление элемента, если он достиг 0
+    const counter = element.querySelector('.counter_container span');
+    if (counter) {
+      let stacks = parseInt(counter.innerText);
+      stacks = Math.floor(stacks * 0.66);
+      if (stacks <= 0) {
+        element.remove();
+      } else {
+        counter.innerText = stacks;
+      }
+    }
+  });
+}
+
+const crackBlocksButton = document.getElementById('bonuses_panel-crack_blocks');
+crackBlocksButton.addEventListener('click', crackBlocks);
+
+// Удвоение количества шаров на 1 ход
+function extraBallsForRaund() {
+  const extraBallsButtonCounter = document.getElementById(
+    'bonuses_panel-extra_balls-counter'
+  );
+  let stacks = extraBallsButtonCounter.dataset.stacks;
+  if (stacks === '0') {
+    return;
+  }
+  stacks--;
+  extraBallsButtonCounter.dataset.stacks = stacks;
+  extraBallsButtonCounter.innerText = `x${stacks}`;
+
+  temporaryExtraBalls += waitingBalls.length;
+  const cikleLength = waitingBalls.length;
+
+  for (let i = 0; i < cikleLength; i++) {
+    createBall();
+  }
+}
+
+const extraBallsButton = document.getElementById('bonuses_panel-extra_balls');
+extraBallsButton.addEventListener('click', extraBallsForRaund);

@@ -15,7 +15,39 @@
       <span id="stopped-counter"></span>
     </div>
   </div>
-  <button id="stop-button">Stop Animation</button>
+  <div class="bottom_game_zone_panel">
+    <button id="stop-button">Stop Animation</button>
+    <div class="bottom_game_zone_panel-no_active" id="bottom_game_zone_panel-no_active">
+      <div class="bonuses_panel" id="bonuses_panel">
+        <button class="scroll_control_button" id="scroll_control_button">SC</button>
+        <button class="bonuses_panel-bonus" id="bonuses_panel-crack_blocks">
+          <img class="bonuses_panel-bonus-icon" src="#" alt="crack" width="20px">
+          <span class="bonuses_panel-bonus-counter" id="bonuses_panel-crack_blocks-counter" data-stacks="99">x99</span>
+        </button>
+        <button class="bonuses_panel-bonus" id="bonuses_panel-extra_balls">
+          <img class="bonuses_panel-bonus-icon" src="#" alt="x2" width="20px">
+          <span class="bonuses_panel-bonus-counter" id="bonuses_panel-extra_balls-counter" data-stacks="99">x99</span>
+        </button>
+        <button class="bonuses_panel-bonus">
+          <img class="bonuses_panel-bonus-icon" src="#" alt="destroy first line" width="20px">
+          <span class="bonuses_panel-bonus-counter">x99</span>
+        </button>
+        <button class="bonuses_panel-bonus">
+          <img class="bonuses_panel-bonus-icon" src="#" alt="add 4 random lasers" width="20px">
+          <span class="bonuses_panel-bonus-counter">x99</span>
+        </button>
+        <button class="bonuses_panel-bonus">
+          <img class="bonuses_panel-bonus-icon" src="#" alt="add 5 metal guard boxes" width="20px">
+          <span class="bonuses_panel-bonus-counter">x99</span>
+        </button>
+      </div>
+      <div class="scroll_panel" id="scroll_panel">
+        <button class="scroll_panel-arrow_back" id="scroll_panel-arrow_back"><</button>
+        <input type="range" name="" id="">
+        <button class="scroll_panel-gold-trajectory">aim</button>
+      </div>
+    </div>
+  </div>
   
   <script src="index.js"></script>
 </body>
