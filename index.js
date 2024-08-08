@@ -11,9 +11,15 @@ const noActiveGameZonePanel = document.getElementById(
 const bonusPanel = document.getElementById('bonuses_panel');
 const scrollPanel = document.getElementById('scroll_panel');
 const scrollPanelArrowBack = document.getElementById('scroll_panel-arrow_back');
+const warningZone = document.getElementById('last_step_warning_zone');
 
+const ballSpead = 8;
 const ballsSize = container.clientWidth / 50;
 const elementsSize = container.clientWidth / 11;
+const maxLineNumber = Math.floor((container.clientHeight-ballsSize*2)/elementsSize);
+
+let elementsStacks = 1;
+let currentNewLineNumber = 1;
 
 waitingContainer.style.width = ballsSize + 'px';
 waitingContainer.style.height = ballsSize + 'px';
@@ -25,6 +31,7 @@ stoppedContainer.style.fontSize = elementsSize / 2 + 'px';
 stopButton.style.display = 'none';
 scrollPanel.style.display = 'none';
 
+let isGameOver = false;
 let balls = [];
 let waitingBalls = [];
 let stopPosition = {
@@ -165,7 +172,8 @@ for (let i = 0; i < 1; i++) {
   createBall();
 }
 
-generateLevel(levelConfig);
+// generateLevel(levelConfig);
+addNewLineClassicMode(10, elementsStacks++);
 stopButton.addEventListener('click', stopAnimation);
 container.addEventListener('mousedown', startDrawingTrajectory);
 container.addEventListener('mousemove', updateTrajectory);
@@ -189,16 +197,47 @@ function generateLevel(config) {
         const y = rowIndex * elementsSize;
         switch (cell.type) {
           case 'box':
-            createBox(x, y, cell.stacks);
+            createBox({x, y, stacks: cell.stacks});
             break;
           case 'triangle':
-            createTriangle(x, y, cell.mainAngle, cell.stacks);
+            createTriangle({x, y, mainAngle: cell.mainAngle, stacks: cell.stacks});
             break;
           case 'addBalls':
-            createBonusBallsElement(x, y, cell.bonus);
+            createBonusBallsElement({x, y, bonus: cell.bonus});
             break;
           case 'laser':
-            createLaserElement(x, y, cell.direction);
+            createLaserElement({x, y, direction: cell.direction});
+            break;
+        }
+      }
+    });
+  });
+}
+
+// Генерация новой линии со случайными блоками (предпоследний блок - всегда бонусный мяч)
+function generateLine(config) {
+  config.rows.forEach((row, rowIndex) => {
+    row.forEach((cell, cellIndex) => {
+      if (cellIndex === 8) {
+        const x = cellIndex * elementsSize;
+        const y = rowIndex * elementsSize;
+        createBonusBallsElement({x, y, bonus: 1});
+      } else if (cell) {
+        const x = cellIndex * elementsSize;
+        const y = rowIndex * elementsSize;
+        
+        switch (cell.type) {
+          case 'box':
+            createBox({x, y, stacks: cell.stacks});
+            break;
+          case 'triangle':
+            createTriangle({x, y, mainAngle: cell.mainAngle, stacks: cell.stacks});
+            break;
+          case 'addBalls':
+            createBonusBallsElement({x, y, bonus: cell.bonus});
+            break;
+          case 'laser':
+            createLaserElement({x, y, direction: cell.direction});
             break;
         }
       }
@@ -207,14 +246,15 @@ function generateLevel(config) {
 }
 
 // Создание новой строки блоков со сдвигом вниз
-function addNewLineClassicMode() {
+function addNewLineClassicMode(size, stacks) {
   const elements = document.querySelectorAll('.element');
 
   elements.forEach((element) => {
     element.style.top = element.offsetTop + elementsSize + 'px';
   });
 
-  generateLevel(newLineGenerating(10, 8));
+  generateLine(newLineGenerating(size, stacks));
+  currentNewLineNumber++;
 }
 
 // Генерация строки случайных элементов (!дополнить типами элементов)
@@ -254,13 +294,24 @@ function newLineGenerating(length, stacks) {
             stacks: stack,
           };
       }
-    } else if (randomNumber >= 50 && randomNumber < 95) {
+    } else if (randomNumber >= 50 && randomNumber < 98) {
       return;
+    } else if (randomNumber >= 98 && randomNumber < 100) {
+      const randomType = Math.floor(Math.random() * 2);
+      switch (randomType) {
+        case 0:
+          return { 
+            type: 'laser',
+            direction: 'TB'
+          };
+        case 1:
+          return { 
+            type: 'laser',
+            direction: 'LR'
+          };
+      }
     } else {
-      return {
-        type: 'addBalls',
-        bonus: 1,
-      };
+      return;
     }
   }
   const newLine = {
@@ -286,26 +337,29 @@ function createCounter(stacks) {
 }
 
 // Создание коробки
-function createBox(x, y, stacks) {
+function createBox(config) {
   const box = document.createElement('div');
-  box.setAttribute('data-stacks', stacks);
+  box.dataset.stacks = config.stacks;
+  box.dataset.line = currentNewLineNumber;
   box.className = 'element box';
   box.style.width = elementsSize + 'px';
   box.style.height = elementsSize + 'px';
-  box.style.left = x + 'px';
-  box.style.top = y + 'px';
-  box.appendChild(createCounter(stacks));
+  box.style.left = config.x + 'px';
+  box.style.top = config.y + 'px';
+  box.appendChild(createCounter(config.stacks));
   container.appendChild(box);
 }
 
 // Создание треугольника
-function createTriangle(x, y, mainAngle, stacks) {
+function createTriangle(config) {
   const triangle = document.createElement('div');
-  triangle.className = `element triangle triangle-${mainAngle}`;
-  triangle.setAttribute('data-main-angle', mainAngle);
-  triangle.setAttribute('data-stacks', stacks);
+  triangle.className = `element triangle triangle-${config.mainAngle}`;
 
-  switch (mainAngle) {
+  triangle.dataset.mainAngle = config.mainAngle;
+  triangle.dataset.stacks = config.stacks;
+  triangle.dataset.line = currentNewLineNumber;
+
+  switch (config.mainAngle) {
     case 'RB':
       triangle.style.borderLeft = `${elementsSize}px solid transparent`;
       triangle.style.borderBottom = `${elementsSize}px solid blue`;
@@ -324,45 +378,51 @@ function createTriangle(x, y, mainAngle, stacks) {
       break;
   }
 
-  triangle.style.left = x + 'px';
-  triangle.style.top = y + 'px';
-  triangle.appendChild(createCounter(stacks));
+  triangle.style.left = config.x + 'px';
+  triangle.style.top = config.y + 'px';
+  triangle.appendChild(createCounter(config.stacks));
   container.appendChild(triangle);
 }
 
-function createBonusBallsElement(x, y, bonus) {
+function createBonusBallsElement(config) {
   const box = document.createElement('div');
   box.className = 'element bonus-box add-balls-bonus';
-  box.setAttribute('data-extra-balls', bonus);
+
+  box.dataset.extraBalls = config.bonus;
+  box.dataset.line = currentNewLineNumber;
+
   box.style.width = elementsSize + 'px';
   box.style.height = elementsSize + 'px';
-  box.style.left = x + 'px';
-  box.style.top = y + 'px';
+  box.style.left = config.x + 'px';
+  box.style.top = config.y + 'px';
   const bonusBallsElement = document.createElement('div');
   bonusBallsElement.className = 'circle-bonus bonus-balls-circle';
   const bonusTitle = document.createElement('span');
-  bonusTitle.innerText = `+${bonus}`;
+  bonusTitle.innerText = `+${config.bonus}`;
   bonusTitle.style.fontSize = elementsSize / 3 + 'px';
   bonusBallsElement.appendChild(bonusTitle);
   box.appendChild(bonusBallsElement);
   container.appendChild(box);
 }
 
-function createLaserElement(x, y, direction) {
+function createLaserElement(config) {
   const box = document.createElement('div');
   box.className = 'element bonus-box laser-bonus';
-  box.dataset.direction = direction;
+
+  box.dataset.direction = config.direction;
   box.dataset.activated = 'false';
+  box.dataset.line = currentNewLineNumber;
+
   box.style.width = elementsSize + 'px';
   box.style.height = elementsSize + 'px';
-  box.style.left = x + 'px';
-  box.style.top = y + 'px';
+  box.style.left = config.x + 'px';
+  box.style.top = config.y + 'px';
   const laserElement = document.createElement('div');
   laserElement.className = 'circle-bonus laser-circle';
   const bonusTitle = document.createElement('span');
 
   bonusTitle.innerText = '<>';
-  bonusTitle.style.transform = direction === 'TB' ? 'rotate(90deg)' : null;
+  bonusTitle.style.transform = config.direction === 'TB' ? 'rotate(90deg)' : null;
   bonusTitle.style.fontSize = elementsSize / 3 + 'px';
   laserElement.appendChild(bonusTitle);
   box.appendChild(laserElement);
@@ -593,23 +653,23 @@ function handleCollision(ball, element) {
 
     if (
       isPointInCircle(ballRect.left, ballRect.top, {
-        x: circleElementRect.left - circleElementRect.width / 2,
-        y: circleElementRect.top - circleElementRect.height / 2,
+        x: circleElementRect.left + circleElementRect.width / 2,
+        y: circleElementRect.top + circleElementRect.height / 2,
         r: circleElementRect.width / 2,
       }) ||
       isPointInCircle(ballRect.left, ballRect.bottom, {
-        x: circleElementRect.left - circleElementRect.width / 2,
-        y: circleElementRect.top - circleElementRect.height / 2,
+        x: circleElementRect.left + circleElementRect.width / 2,
+        y: circleElementRect.top + circleElementRect.height / 2,
         r: circleElementRect.width / 2,
       }) ||
       isPointInCircle(ballRect.right, ballRect.top, {
-        x: circleElementRect.left - circleElementRect.width / 2,
-        y: circleElementRect.top - circleElementRect.height / 2,
+        x: circleElementRect.left + circleElementRect.width / 2,
+        y: circleElementRect.top + circleElementRect.height / 2,
         r: circleElementRect.width / 2,
       }) ||
       isPointInCircle(ballRect.right, ballRect.bottom, {
-        x: circleElementRect.left - circleElementRect.width / 2,
-        y: circleElementRect.top - circleElementRect.height / 2,
+        x: circleElementRect.left + circleElementRect.width / 2,
+        y: circleElementRect.top + circleElementRect.height / 2,
         r: circleElementRect.width / 2,
       })
     ) {
@@ -1006,11 +1066,59 @@ function checkAllBallsStopped() {
         ? updateStoppedCounter()
         : updateWaitingCounter();
     }
-    addNewLineClassicMode();
+    addNewLineClassicMode(10, elementsStacks++);
     noActiveGameZonePanel.style.display = 'flex';
     stopButton.style.display = 'none';
     bonusPanel.style.display = 'flex';
     scrollPanel.style.display = 'none';
+    rewriteLineNumbers();
+    checkIslastStepToWin();
+    checkGameOver();
+  }
+}
+
+// Проверка номера нижней линии и пересчет линий для дальшейшего определения поражения
+function getLastLineNumber() {
+  const elements = Array.from(document.querySelectorAll('.element:not(.bonus-box)'));
+  const sortedArrayByLineNumber = elements.sort((element1, element2) => parseInt(element1.dataset.line) - parseInt(element2.dataset.line));
+  const minLineNumber = parseInt(sortedArrayByLineNumber[0].dataset.line);
+
+  return minLineNumber -1;
+}
+
+function getFirstLineNumber() {
+  const elements = Array.from(document.querySelectorAll('.element:not(.bonus-box)'));
+  const sortedArrayByLineNumber = elements.sort((element1, element2) => parseInt(element2.dataset.line) - parseInt(element1.dataset.line));
+  const maxLineNumber = parseInt(sortedArrayByLineNumber[0].dataset.line);
+
+  return maxLineNumber;
+}
+
+function rewriteLineNumbers() {
+  const lastLineNumber = getLastLineNumber();
+
+  if (lastLineNumber === 0) return;
+
+  const elements = document.querySelectorAll('.element');
+
+
+  elements.forEach(element => element.dataset.line -= lastLineNumber)
+}
+
+function checkIslastStepToWin() {
+  const firstLineNumber = getFirstLineNumber();
+
+  if (firstLineNumber === maxLineNumber) {
+    warningZone.style.display = 'flex';
+  } else {
+    warningZone.style.display = 'none';
+  }
+}
+
+// Проверка конца игры
+function checkGameOver() {
+  if (getFirstLineNumber() > maxLineNumber) {
+    isGameOver = true;
   }
 }
 
@@ -1151,7 +1259,10 @@ function getTriangleVertices(triangle, rect) {
   return vertices;
 }
 
-container.addEventListener('mouseup', function mouseUpHandler(event) {
+container.addEventListener('mouseup', mouseUpHandler);
+function mouseUpHandler(event) {
+  if (isGameOver) return;
+
   // Позиция мыши в момент отпускания кнопки
   const releaseX = event.clientX - container.getBoundingClientRect().left;
   const releaseY = event.clientY - container.getBoundingClientRect().top;
@@ -1162,18 +1273,18 @@ container.addEventListener('mouseup', function mouseUpHandler(event) {
   const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
   // Задание скорости и направления
-  velX = (deltaX / distance) * 4; // Коэффициент скорости
-  velY = (deltaY / distance) * 4;
+  velX = (deltaX / distance) * ballSpead; // Коэффициент скорости
+  velY = (deltaY / distance) * ballSpead;
 
   // Запуск анимации
   startBalls(velX, velY);
 
   // Удаление траектории
   clearTrajectory();
-});
+}
 
 function startDrawingTrajectory(event) {
-  if (isAnimating) return;
+  if (isAnimating || isGameOver) return;
   clearTrajectory();
   const { clientX, clientY } = event;
   const startX = stopPosition.left + ballsSize / 2;
@@ -1314,3 +1425,11 @@ function extraBallsForRaund() {
 
 const extraBallsButton = document.getElementById('bonuses_panel-extra_balls');
 extraBallsButton.addEventListener('click', extraBallsForRaund);
+
+// Удаление нижней линии
+function destroyFirstLine() {
+
+}
+
+const destroyLineButton = document.getElementById('bonuses_panel-bonus-counter');
+destroyLineButton.addEventListener('click', destroyFirstLine);
