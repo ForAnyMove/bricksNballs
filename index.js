@@ -1101,7 +1101,7 @@ function rewriteLineNumbers() {
 
   const elements = document.querySelectorAll('.element');
 
-  currentNewLineNumber--;
+  currentNewLineNumber -= lastLineNumber;
   elements.forEach(element => element.dataset.line -= lastLineNumber)
 }
 
