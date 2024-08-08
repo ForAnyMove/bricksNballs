@@ -1101,7 +1101,7 @@ function rewriteLineNumbers() {
 
   const elements = document.querySelectorAll('.element');
 
-
+  currentNewLineNumber--;
   elements.forEach(element => element.dataset.line -= lastLineNumber)
 }
 
@@ -1428,8 +1428,24 @@ extraBallsButton.addEventListener('click', extraBallsForRaund);
 
 // Удаление нижней линии
 function destroyFirstLine() {
+  const destroyLineButtonCounter = document.getElementById(
+    'bonuses_panel-destroy_line-counter'
+  );
+  let stacks = destroyLineButtonCounter.dataset.stacks;
+  if (stacks === '0') {
+    return;
+  }
+  stacks--;
+  destroyLineButtonCounter.dataset.stacks = stacks;
+  destroyLineButtonCounter.innerText = `x${stacks}`;
 
+  temporaryExtraBalls += waitingBalls.length;
+  const cikleLength = waitingBalls.length;
+
+  for (let i = 0; i < cikleLength; i++) {
+    createBall();
+  }
 }
 
-const destroyLineButton = document.getElementById('bonuses_panel-bonus-counter');
+const destroyLineButton = document.getElementById('bonuses_panel-destroy_line-counter');
 destroyLineButton.addEventListener('click', destroyFirstLine);
